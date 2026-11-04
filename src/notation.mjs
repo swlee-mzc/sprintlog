@@ -5,7 +5,8 @@ const min = (xs) => xs.filter(Boolean).sort()[0] ?? null;
 
 // 기능 = 내 서브태스크의 부모 스토리. 서브태스크 없이 내게 배정된 티켓은 그 자체가 기능이다.
 // planMode: fill = 계획 날짜는 Jira 에 날짜가 없을 때만 쓴다(로컬 계획), override = 계획 날짜가 이긴다(재계획 미리보기).
-export function features(subtasks, { labels = {}, planned = [], planMode = 'fill' } = {}) {
+// from 이 있으면 그 전에 끝난 서브태스크는 기능의 기간 계산에서 뺀다(완료 판정에는 남긴다).
+export function features(subtasks, { labels = {}, planned = [], planMode = 'fill', from = null } = {}) {
   const plan = new Map(planned.map((p) => [p.key, p]));
   const mine = subtasks
     .filter((s) => s.mine && !s.dropped)
@@ -25,16 +26,20 @@ export function features(subtasks, { labels = {}, planned = [], planMode = 'fill
     groups.get(key).items.push(s);
   }
   return [...groups.values()]
-    .map((g) => ({
-      key: g.key,
-      summary: g.summary,
-      label: labels[g.key] ?? null,
-      start: min(g.items.map((i) => i.startDate ?? i.dueDate)),
-      due: max(g.items.map((i) => i.dueDate)),
-      originalDue: max(g.items.map((i) => i.originalDueDate ?? i.dueDate)),
-      done: g.items.every((i) => i.done),
-      items: g.items.map((i) => i.key),
-    }))
+    .map((g) => {
+      const current = g.items.filter((i) => !(from && i.done && i.dueDate && i.dueDate < from));
+      const span = current.length ? current : g.items;
+      return {
+        key: g.key,
+        summary: g.summary,
+        label: labels[g.key] ?? null,
+        start: min(span.map((i) => i.startDate ?? i.dueDate)),
+        due: max(span.map((i) => i.dueDate)),
+        originalDue: max(span.map((i) => i.originalDueDate ?? i.dueDate)),
+        done: g.items.every((i) => i.done),
+        items: g.items.map((i) => i.key),
+      };
+    })
     .sort((a, b) => (a.start ?? '9999').localeCompare(b.start ?? '9999') || a.key.localeCompare(b.key));
 }
 
@@ -58,7 +63,7 @@ const fixedEntry = (text) => ({ kind: 'fixed', text, strike: false, key: null })
 export function notation({ week, subtasks, labels = {}, planned = [], planMode = 'fill', fixedLines = [], holidays = [] }) {
   const days = weekDays(week);
   const open = new Set(workdays(days[0], days.at(-1), holidays));
-  const list = features(subtasks, { labels, planned, planMode });
+  const list = features(subtasks, { labels, planned, planMode, from: days[0] });
   const cells = {};
   for (const d of days) {
     cells[d] = open.has(d) ? list.map((f) => entryFor(f, d)).filter(Boolean) : null;

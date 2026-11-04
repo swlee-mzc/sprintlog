@@ -10,6 +10,7 @@ import { facts } from '../src/facts.mjs';
 import { notation } from '../src/notation.mjs';
 import { cells, tabTitle } from '../src/cells.mjs';
 import { classify } from '../src/close.mjs';
+import { check as checkPlan } from '../src/check.mjs';
 import { applyReady, listPlans, markApplied, savePlan } from '../src/plans.mjs';
 import { isStale, loadSnapshot, saveSnapshot } from '../src/snapshot.mjs';
 import { renderSprint, renderWeek } from '../src/render.mjs';
@@ -34,6 +35,7 @@ const HELP = `sprintlog — 스프린트 계획과 주간 현황 시트 동기�
   notation                      칸별 표기 판정
   sheet target [--week <날짜>]  대상 시트·탭·읽을 범위
   cells                         Sheets 요청·차이표
+  check                         주중 계획 대비 점검(기한 초과·오늘 기한·검토 중 머지·부모 완료)
   close classify                스프린트 종료 판정표
   labels set                    LLM 기능명 검증 후 프로필 반영
   plan local save|list|apply-ready|mark-applied --sprint <이름> --keys <a,b>
@@ -160,6 +162,15 @@ const COMMANDS = {
     for (const c of out.cells.filter((c) => c.changed)) log('diff', 'ok', { cell: c.a1, key: c.key });
     log('cells', 'ok', { row: out.row, changed: out.requests.length });
     return { output: out, exit: EXIT.OK };
+  }),
+
+  check: machine('check', (o, _, log, ctx) => {
+    const p = loadProfile();
+    ctx.input = input(o, 'check-input');
+    const out = checkPlan({ reviewStatuses: p.jira.reviewStatuses ?? DEFAULTS.reviewStatuses, ...ctx.input });
+    for (const a of out.actions) log('check', a.action === 'check-pr' ? 'warn' : 'ok', { key: a.key, action: a.action, reason: a.reason });
+    log('check', out.actions.length ? 'warn' : 'ok', { actions: out.actions.length });
+    return { output: out, exit: out.actions.length ? EXIT.ACTION : EXIT.OK };
   }),
 
   'close classify': machine('close classify', (o, _, log, ctx) => {

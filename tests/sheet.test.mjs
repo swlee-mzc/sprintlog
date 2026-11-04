@@ -4,6 +4,7 @@ import { facts } from '../src/facts.mjs';
 import { notation } from '../src/notation.mjs';
 import { cells, cellText, colLetter, tabTitle } from '../src/cells.mjs';
 import { classify } from '../src/close.mjs';
+import { check } from '../src/check.mjs';
 import { fit, renderWeek, width } from '../src/render.mjs';
 
 const ME = 'me-1';
@@ -197,4 +198,36 @@ test('render: 한글 두 칸 폭, 색을 끄면 제어 문자 없음, md 는 취
   const md = renderWeek(snap, { week: '2026-11-09', today: '2026-11-11', format: 'md' });
   assert.ok(md.includes('~~✓ [완료]~~'));
   assert.ok(renderWeek(snap, { week: '2026-11-09', today: '2026-11-11', color: true }).includes('\x1b[32;9m'));
+});
+
+test('check: 기한 초과·오늘 기한·검토 중 머지·근거 없음·부모 완료', () => {
+  const t = (key, extra) => ({ key, mine: true, done: false, dropped: false, subtask: true, parentKey: 'S-1', status: '진행 중', dueDate: '2026-11-05', ...extra });
+  const subtasks = [
+    { key: 'S-1', mine: true, done: false, subtask: false, parentKey: null, status: '진행 중', dueDate: '2026-11-13' },
+    t('S-2', { done: true }),
+    t('S-3', { status: '검토 중', dueDate: '2026-10-29' }),
+    t('T-1', { subtask: false, parentKey: null, dueDate: '2026-11-03' }),
+    t('T-2', { subtask: false, parentKey: null, dueDate: '2026-11-04' }),
+    t('T-3', { subtask: false, parentKey: null, status: '검토 중' }),
+    t('X-1', { mine: false, subtask: false, parentKey: null, dueDate: '2026-11-01' }),
+  ];
+  const out = check({ today: '2026-11-04', subtasks, merged: { 'S-3': true }, reviewStatuses: ['검토 중'] });
+  assert.deepEqual(out.actions.map((a) => [a.key, a.action]), [
+    ['S-3', 'transition-done'],
+    ['T-1', 'set-due'],
+    ['T-2', 'confirm-today'],
+    ['T-3', 'check-pr'],
+    ['S-1', 'transition-parent-done'],
+  ]);
+  const notMerged = check({ today: '2026-11-04', subtasks, merged: { 'S-3': false, 'T-3': false }, reviewStatuses: ['검토 중'] });
+  assert.deepEqual(notMerged.actions.find((a) => a.key === 'S-3'), { key: 'S-3', status: '검토 중', dueDate: '2026-10-29', action: 'set-due', reason: 'review-not-merged-overdue', ask: 'newDueDate' });
+  assert.ok(!notMerged.actions.some((a) => a.key === 'S-1' || a.key === 'T-3'));
+});
+
+test('notation: 그 주 전에 끝난 서브태스크는 기능 기간에서 빠진다', () => {
+  const out = notation({ week: '2026-11-02', subtasks: [st('PROJ-2', { done: true, startDate: '2026-10-26', dueDate: '2026-10-30', originalDueDate: '2026-10-30' }), st('PROJ-3', { startDate: '2026-11-06', dueDate: '2026-11-06', originalDueDate: '2026-11-06' })], labels: { 'PROJ-1': '기능 A' } });
+  assert.equal(out.features[0].start, '2026-11-06');
+  assert.deepEqual(out.cells['2026-11-04'], []);
+  assert.equal(out.cells['2026-11-06'][0].text, '[완료] 기능 A');
+  assert.equal(out.features[0].done, false);
 });
