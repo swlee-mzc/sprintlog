@@ -1,14 +1,18 @@
 {
   "name": "sprintlog",
-  "owner": { "name": "swlee" },
+  "owner": {
+    "name": "swlee"
+  },
   "description": "sprintlog 배포용 마켓플레이스.",
   "plugins": [
     {
       "name": "sprintlog",
       "source": "./",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "description": "Jira 스프린트에 다음 주까지의 업무 계획을 날짜 단위로 적고, 그 진행 기록을 주간 현황 시트에 동기화한다.",
-      "author": { "name": "swlee" },
+      "author": {
+        "name": "swlee"
+      },
       "homepage": "https://github.com/swlee-mzc/sprintlog",
       "repository": "https://github.com/swlee-mzc/sprintlog",
       "license": "MIT"
