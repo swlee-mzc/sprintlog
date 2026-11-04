@@ -64,7 +64,14 @@ sprintlog leak-check             커밋 전 추적 파일 검사(패턴은 레�
 스킬은 `sprint resolve`, `plan draft`, `schedule`, `facts`, `notation`, `sheet target`, `cells`, `close classify`, `labels set`, `plan local`, `snapshot save` 를 호출한다.
 전체 목록은 `sprintlog --help`.
 
-설치(선택): 플러그인 폴더에서 `pnpm link --global`. 스킬은 설치 여부와 상관없이 `node ${CLAUDE_PLUGIN_ROOT}/bin/sprintlog.mjs` 로 부른다.
+## 설치
+
+```
+claude plugin marketplace add swlee-mzc/sprintlog
+claude plugin install sprintlog@sprintlog
+```
+
+터미널 명령 `sprintlog`(선택): 플러그인 폴더에서 `pnpm link --global`. 스킬은 설치 여부와 상관없이 `node ${CLAUDE_PLUGIN_ROOT}/bin/sprintlog.mjs` 로 부른다.
 
 ## 개발
 

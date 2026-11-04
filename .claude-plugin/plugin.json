@@ -12,5 +12,7 @@
     "weekly-report",
     "google-sheets"
   ],
-  "skills": "./skills/"
+  "skills": "./skills/",
+  "homepage": "https://github.com/swlee-mzc/sprintlog",
+  "repository": "https://github.com/swlee-mzc/sprintlog"
 }
