@@ -1,0 +1,138 @@
+{
+  "type": "object",
+  "required": [
+    "week",
+    "subtasks"
+  ],
+  "properties": {
+    "week": {
+      "$ref": "#/$defs/date"
+    },
+    "subtasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "key",
+          "mine",
+          "done"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "subtask": {
+            "type": "boolean"
+          },
+          "parentKey": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "parentSummary": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "mine": {
+            "type": "boolean"
+          },
+          "done": {
+            "type": "boolean"
+          },
+          "dropped": {
+            "type": "boolean"
+          },
+          "startDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "dueDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "originalDueDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          }
+        }
+      }
+    },
+    "planned": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "key",
+          "startDate",
+          "dueDate",
+          "hours"
+        ],
+        "properties": {
+          "key": {
+            "type": "string",
+            "minLength": 1
+          },
+          "startDate": {
+            "$ref": "#/$defs/date"
+          },
+          "dueDate": {
+            "$ref": "#/$defs/date"
+          },
+          "hours": {
+            "type": "number",
+            "minimum": 0
+          },
+          "fixed": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "labels": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "fixedLines": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "holidays": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/date"
+      }
+    },
+    "planMode": {
+      "enum": [
+        "fill",
+        "override"
+      ]
+    }
+  },
+  "$defs": {
+    "date": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    }
+  }
+}

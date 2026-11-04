@@ -1,0 +1,49 @@
+{
+  "type": "object",
+  "required": [
+    "notation",
+    "sheet",
+    "header",
+    "names"
+  ],
+  "properties": {
+    "notation": {
+      "type": "object",
+      "required": [
+        "week",
+        "cells",
+        "next"
+      ]
+    },
+    "sheet": {
+      "type": "object",
+      "required": [
+        "sheetId",
+        "title"
+      ],
+      "properties": {
+        "sheetId": {
+          "type": "integer"
+        },
+        "title": {
+          "type": "string"
+        }
+      }
+    },
+    "header": {
+      "type": "array"
+    },
+    "names": {
+      "type": "array"
+    },
+    "current": {
+      "type": "array"
+    },
+    "currentRuns": {
+      "type": [
+        "array",
+        "null"
+      ]
+    }
+  }
+}

@@ -1,0 +1,119 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "syncedAt",
+    "features"
+  ],
+  "properties": {
+    "syncedAt": {
+      "type": "string"
+    },
+    "sprint": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "required": [
+        "name",
+        "start",
+        "end"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "start": {
+          "$ref": "#/$defs/date"
+        },
+        "end": {
+          "$ref": "#/$defs/date"
+        }
+      }
+    },
+    "features": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "key",
+          "summary",
+          "start",
+          "due",
+          "originalDue",
+          "done"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "label": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "start": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "due": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "originalDue": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "done": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "fixedLines": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "holidays": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/date"
+      }
+    },
+    "hours": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "number"
+      }
+    },
+    "capacity": {
+      "type": "object",
+      "properties": {
+        "hoursPerDay": {
+          "type": "number"
+        },
+        "maxHoursPerDay": {
+          "type": "number"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "date": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    }
+  }
+}

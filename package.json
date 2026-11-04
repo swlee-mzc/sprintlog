@@ -1,0 +1,13 @@
+{
+  "name": "sprintlog",
+  "version": "0.1.0",
+  "description": "Plan sprint work in Jira by day and sync progress to a weekly status sheet (Claude Code plugin with CLI)",
+  "type": "module",
+  "license": "MIT",
+  "bin": { "sprintlog": "./bin/sprintlog.mjs" },
+  "engines": { "node": ">=24" },
+  "files": ["bin", "src", "schemas"],
+  "scripts": {
+    "test": "node --test 'tests/*.test.mjs'"
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "from",
+    "to",
+    "items"
+  ],
+  "properties": {
+    "from": {
+      "$ref": "#/$defs/date"
+    },
+    "to": {
+      "$ref": "#/$defs/date"
+    },
+    "sprint": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "start": {
+          "$ref": "#/$defs/date"
+        },
+        "end": {
+          "$ref": "#/$defs/date"
+        }
+      }
+    },
+    "busy": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "number",
+        "minimum": 0
+      }
+    },
+    "hoursPerDay": {
+      "type": "number",
+      "minimum": 1
+    },
+    "maxHoursPerDay": {
+      "type": "number",
+      "minimum": 1
+    },
+    "holidays": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/date"
+      }
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "key",
+          "hours"
+        ],
+        "properties": {
+          "key": {
+            "type": "string",
+            "minLength": 1
+          },
+          "hours": {
+            "type": "number",
+            "minimum": 0.25
+          },
+          "fixedStart": {
+            "$ref": "#/$defs/date"
+          },
+          "fixedDue": {
+            "$ref": "#/$defs/date"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "date": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    }
+  }
+}

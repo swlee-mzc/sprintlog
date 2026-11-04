@@ -1,0 +1,16 @@
+{
+  "name": "sprintlog",
+  "version": "0.1.0",
+  "description": "Jira 스프린트에 다음 주까지의 업무 계획을 날짜 단위로 적고, 그 진행 기록을 주간 현황 시트에 동기화한다. 결정적 처리는 내장 CLI 가 맡는다. Claude Code 전용(claude.ai Atlassian·Google Sheets·Google Drive 커넥터 필요).",
+  "author": {
+    "name": "swlee"
+  },
+  "license": "MIT",
+  "keywords": [
+    "jira",
+    "sprint",
+    "weekly-report",
+    "google-sheets"
+  ],
+  "skills": "./skills/"
+}

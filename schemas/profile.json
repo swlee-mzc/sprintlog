@@ -1,0 +1,92 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["jira", "sprint", "sheet", "capacity"],
+  "properties": {
+    "jira": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cloudId", "accountId", "fields"],
+      "properties": {
+        "cloudId": { "type": "string", "minLength": 1 },
+        "accountId": { "type": "string", "minLength": 1 },
+        "projectKey": { "type": ["string", "null"] },
+        "fields": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["sprint", "startDate", "dueDate"],
+          "properties": {
+            "sprint": { "type": "string", "minLength": 1 },
+            "startDate": { "type": "string", "minLength": 1 },
+            "dueDate": { "type": "string", "minLength": 1 },
+            "startDatetime": { "type": ["string", "null"] },
+            "endDatetime": { "type": ["string", "null"] }
+          }
+        },
+        "reviewStatuses": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "workflow": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "plugin": { "type": ["string", "null"] },
+        "configPath": { "type": ["string", "null"] },
+        "subtaskSkill": { "type": ["string", "null"] }
+      }
+    },
+    "sprint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["namePattern", "lengthWeeks", "anchor", "endWeekday"],
+      "properties": {
+        "boardId": { "type": ["integer", "null"] },
+        "namePattern": { "type": "string", "pattern": "\\{n\\}" },
+        "lengthWeeks": { "type": "integer", "minimum": 1, "maximum": 8 },
+        "anchor": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["n", "start"],
+          "properties": {
+            "n": { "type": "integer", "minimum": 0 },
+            "start": { "$ref": "#/$defs/date" }
+          }
+        },
+        "endWeekday": { "enum": ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] },
+        "trackedId": { "type": ["integer", "null"] }
+      }
+    },
+    "sheet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["url", "format", "delivery", "tabPattern", "headerRow", "nameColumn", "memberName"],
+      "properties": {
+        "url": { "type": "string", "pattern": "^https://docs\\.google\\.com/spreadsheets/d/[A-Za-z0-9_-]+" },
+        "format": { "enum": ["sheets", "xlsx"] },
+        "delivery": { "enum": ["api", "paste", "agent"] },
+        "workUrl": { "type": ["string", "null"] },
+        "tabPattern": { "type": "string", "minLength": 1 },
+        "headerRow": { "type": "integer", "minimum": 1 },
+        "nameColumn": { "type": "string", "pattern": "^[A-Z]{1,2}$" },
+        "memberName": { "type": "string", "minLength": 1 },
+        "nextHeader": { "type": "string" },
+        "bullet": { "type": "string" }
+      }
+    },
+    "capacity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hoursPerDay", "maxHoursPerDay"],
+      "properties": {
+        "hoursPerDay": { "type": "number", "minimum": 1, "maximum": 24 },
+        "maxHoursPerDay": { "type": "number", "minimum": 1, "maximum": 24 }
+      }
+    },
+    "holidays": { "type": "array", "items": { "$ref": "#/$defs/date" } },
+    "fixedLines": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "labels": { "type": "object", "additionalProperties": { "type": "string", "minLength": 1 } }
+  },
+  "$defs": {
+    "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" }
+  }
+}
