@@ -26,7 +26,7 @@ CLI 는 `node ${CLAUDE_PLUGIN_ROOT}/bin/sprintlog.mjs`(아래 `sprintlog`). 표�
 ## 2. 판정
 
 1. `sprintlog notation` 에 `week`(월요일), `subtasks`(facts 출력), `planned`(`sprintlog plan local list` 의 반영 전 항목)를 넣는다.
-2. `missingLabels` 가 있으면 기능명을 제안해 `[{ "key", "label" }]` JSON 으로만 내고 사용자 확인 후 `sprintlog labels set --in <파일>` 로 고정한다. 기능명에 `[완료`, `]`, `~~`, 줄바꿈을 넣지 않는다(CLI 가 거부한다). 그런 다음 notation 을 다시 실행한다.
+2. `missingLabels` 가 있으면 기능명을 간단명료하게 제안해(티켓 키는 CLI 가 붙이므로 넣지 않는다) `[{ "key", "label" }]` JSON 으로만 내고 사용자 확인 후 `sprintlog labels set --in <파일>` 로 고정한다. 기능명에 `[완료`, `]`, `~~`, 줄바꿈을 넣지 않는다(CLI 가 거부한다). 그런 다음 notation 을 다시 실행한다.
 
 ## 3. 칸 조립
 

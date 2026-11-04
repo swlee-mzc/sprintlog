@@ -152,7 +152,7 @@ const COMMANDS = {
   cells: machine('cells', (o, _, log, ctx) => {
     const p = loadProfile();
     ctx.input = input(o, 'cells-input');
-    const out = cells({ ...ctx.input, profile: { nextHeader: DEFAULTS.nextHeader, bullet: DEFAULTS.bullet, ...p.sheet } });
+    const out = cells({ ...ctx.input, profile: { nextHeader: DEFAULTS.nextHeader, bullet: DEFAULTS.bullet, ...p.sheet, ticketBase: p.jira.site ?? null } });
     if (out.error) {
       log('locate', 'fail', { error: out.error });
       return { output: out, exit: EXIT.ACTION };

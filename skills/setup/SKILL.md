@@ -20,7 +20,7 @@ CLI 는 `node ${CLAUDE_PLUGIN_ROOT}/bin/sprintlog.mjs` 로 부른다(아래 `spr
 
 ## 2. 조회해서 채우는 값
 
-- `jira.cloudId`, `jira.accountId`: Atlassian 현재 사용자·접근 가능 리소스 조회.
+- `jira.cloudId`, `jira.accountId`, `jira.site`: Atlassian 현재 사용자·접근 가능 리소스 조회(`site` 는 리소스의 `url`, 시트의 티켓 링크에 쓴다).
 - `jira.fields`: 내 티켓 하나를 이슈타입별 필드 메타데이터로 조회해 스프린트·시작 날짜·기한·실적 시각 필드 ID 를 찾는다. 하드코딩하지 않는다.
 - `jira.reviewStatuses`: 프로젝트의 검토 단계 상태 이름.
 - `workflow`: 팀 Jira 워크플로우 플러그인이 설치돼 있으면 이름, 설정 파일 경로, 서브태스크 분해 스킬 이름.

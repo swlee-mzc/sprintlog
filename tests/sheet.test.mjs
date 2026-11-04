@@ -106,7 +106,7 @@ test('notation: 기능명이 없으면 요약으로 쓰고 누락을 보고, 휴
   const out = notation({ week: '2026-11-09', subtasks: [st('PROJ-2')], holidays: ['2026-11-10'], fixedLines: ['반복'] });
   assert.equal(out.cells['2026-11-09'][0].text, '기능 A 전체');
   assert.deepEqual(out.missingLabels, [{ key: 'PROJ-1', summary: '기능 A 전체' }]);
-  assert.deepEqual(out.cells['2026-11-10'], []);
+  assert.equal(out.cells['2026-11-10'], null);
 });
 
 test('cells: 줄 단위 취소선 위치는 UTF-16 기준', () => {
@@ -116,6 +116,25 @@ test('cells: 줄 단위 취소선 위치는 UTF-16 기준', () => {
   assert.equal(colLetter(0), 'A');
   assert.equal(colLetter(27), 'AB');
   assert.equal(tabTitle('{M}월 {N}주', '2026-11-11'), '11월 2주');
+});
+
+test('cells: 티켓 키를 괄호로 붙여 링크를 걸고, 휴일 칸은 건드리지 않는다', () => {
+  const { text, runs } = cellText([{ text: '[완료] 기능 A', strike: true, key: 'P-1' }, { text: '반복', strike: false, key: null }], '- ', 'https://jira.example/');
+  assert.equal(text, '- [완료] 기능 A (P-1)\n- 반복');
+  assert.deepEqual(runs, [
+    { startIndex: 0, format: { strikethrough: true } },
+    { startIndex: 13, format: { strikethrough: true, link: { uri: 'https://jira.example/browse/P-1' } } },
+    { startIndex: 16, format: { strikethrough: true } },
+    { startIndex: 18, format: { strikethrough: false } },
+  ]);
+  const n = notation({ week: '2026-11-09', subtasks: [st('PROJ-2')], labels: { 'PROJ-1': '기능 A' }, holidays: ['2026-11-10'] });
+  const header = ['', '팀원', '월 11/9', '화 11/10', '수 11/11', '목 11/12', '금 11/13', '차주 계획'];
+  const current = ['', '나', '- 기능 A', '휴가', '', '', '', ''];
+  const currentRuns = ['', '', [], [], [], [], [], []];
+  const out = cells({ notation: n, sheet: { sheetId: 5, title: 't' }, profile: { memberName: '나', ticketBase: 'https://jira.example' }, header, names: ['', '나'], current, currentRuns });
+  assert.ok(!out.cells.some((c) => c.a1 === 'D2'));
+  assert.equal(out.cells.find((c) => c.a1 === 'C2').after, '- 기능 A (PROJ-1)');
+  assert.ok(out.cells.find((c) => c.a1 === 'C2').changed);
 });
 
 test('cells: 이름 행과 날짜·차주 열을 찾아 바뀐 칸만 요청', () => {

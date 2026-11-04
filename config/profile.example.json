@@ -2,6 +2,7 @@
   "jira": {
     "cloudId": "",
     "accountId": "",
+    "site": "https://your-site.atlassian.net",
     "projectKey": null,
     "fields": {
       "sprint": "",

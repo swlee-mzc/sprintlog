@@ -61,7 +61,7 @@ export function notation({ week, subtasks, labels = {}, planned = [], planMode =
   const list = features(subtasks, { labels, planned, planMode });
   const cells = {};
   for (const d of days) {
-    cells[d] = open.has(d) ? list.map((f) => entryFor(f, d)).filter(Boolean) : [];
+    cells[d] = open.has(d) ? list.map((f) => entryFor(f, d)).filter(Boolean) : null;
     if (open.has(d)) for (const line of fixedLines) {
       const text = fixedText(line, d);
       if (text) cells[d].push(fixedEntry(text));

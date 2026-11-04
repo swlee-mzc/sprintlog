@@ -12,27 +12,39 @@ export function tabTitle(pattern, date) {
   return pattern.replace('{M}', String(month)).replace('{N}', String(week));
 }
 
-export function cellText(entries, bullet) {
-  const lines = entries.map((e) => `${bullet}${e.text}`);
+// ticketBase 가 있으면 줄 끝에 (티켓 키) 를 붙이고 그 키에 티켓 링크를 건다.
+export function cellText(entries, bullet, ticketBase = null) {
+  const lines = entries.map((e) => `${bullet}${e.text}${ticketBase && e.key ? ` (${e.key})` : ''}`);
   const text = lines.join('\n');
   if (!lines.length) return { text, runs: [] };
   const runs = [];
+  const push = (startIndex, format) => {
+    const last = runs.at(-1);
+    if (last && JSON.stringify(last.format) === JSON.stringify(format)) return;
+    runs.push({ startIndex, format });
+  };
   let offset = 0;
   entries.forEach((e, i) => {
-    if (!runs.length || runs.at(-1).format.strikethrough !== e.strike) runs.push({ startIndex: offset, format: { strikethrough: e.strike } });
+    push(offset, { strikethrough: e.strike });
+    if (ticketBase && e.key) {
+      const keyAt = offset + lines[i].length - e.key.length - 1;
+      push(keyAt, { strikethrough: e.strike, link: { uri: `${ticketBase.replace(/\/$/, '')}/browse/${e.key}` } });
+      push(keyAt + e.key.length, { strikethrough: e.strike });
+    }
     offset += lines[i].length + 1;
   });
   return { text, runs };
 }
 
-// 런 표현은 달라도(빈 배열, strikethrough:false 런) 같은 글자에 취소선이 있으면 같다.
-function struck(runs, length) {
+// 런 표현은 달라도(빈 배열, strikethrough:false 런) 같은 글자에 같은 취소선·링크가 있으면 같다.
+function signature(runs, length) {
   const sorted = [...(runs ?? [])].sort((x, y) => (x.startIndex ?? 0) - (y.startIndex ?? 0));
   const ranges = [];
   sorted.forEach((r, i) => {
     const from = r.startIndex ?? 0;
     const to = i + 1 < sorted.length ? sorted[i + 1].startIndex ?? 0 : length;
-    if (r.format?.strikethrough && to > from) ranges.push(`${from}-${to}`);
+    const mark = `${r.format?.strikethrough ? 's' : ''}${r.format?.link?.uri ?? ''}`;
+    if (mark && to > from) ranges.push(`${from}-${to}:${mark}`);
   });
   return ranges.join(',');
 }
@@ -58,11 +70,12 @@ export function cells({ notation, sheet, profile, header, names, current = [], c
   const out = [];
   const requests = [];
   for (const [k, entries] of targets) {
+    if (entries === null) continue;
     const col = columns[k];
-    const { text, runs } = cellText(entries, cfg.bullet);
+    const { text, runs } = cellText(entries, cfg.bullet, cfg.ticketBase);
     const before = String(current[col] ?? '');
     // 현재 서식을 모르면 내용이 있는 칸은 다시 써서 서식을 보장한다.
-    const changed = Array.isArray(currentRuns) ? before !== text || struck(currentRuns[col], before.length) !== struck(runs, text.length) : before !== text || text.length > 0;
+    const changed = Array.isArray(currentRuns) ? before !== text || signature(currentRuns[col], before.length) !== signature(runs, text.length) : before !== text || text.length > 0;
     const a1 = `${colLetter(col)}${rowIndex + 1}`;
     out.push({ key: k, a1, before, after: text, runs, changed });
     if (!changed) continue;
