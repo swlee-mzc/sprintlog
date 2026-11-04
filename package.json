@@ -1,6 +1,6 @@
 {
   "name": "sprintlog",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Plan sprint work in Jira by day and sync progress to a weekly status sheet (Claude Code plugin with CLI)",
   "type": "module",
   "license": "MIT",

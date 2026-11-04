@@ -48,10 +48,15 @@ CLI 는 `node ${CLAUDE_PLUGIN_ROOT}/bin/sprintlog.mjs`(아래 `sprintlog`). 날�
 
 ## 5. 기록
 
-- 승인된 항목만 쓴다. 필드는 `jira.fields.startDate` 와 `jira.fields.dueDate` 둘뿐이다. 실적 시각 필드(`startDatetime`·`endDatetime`)는 워크플로우 플러그인 몫이라 쓰지 않는다.
+- 승인된 항목만 쓴다. 날짜 필드는 `jira.fields.startDate` 와 `jira.fields.dueDate` 둘뿐이다. 실적 시각 필드(`startDatetime`·`endDatetime`)는 워크플로우 플러그인 몫이라 쓰지 않는다.
 - 이미 값이 있는 필드는 바뀌는 것만 차이로 보여 주고 승인받은 뒤 쓴다.
 - 기한은 지우고 다시 쓰지 말고 값을 갱신한다. 처음 기한이 이력에 남아 지연 판정의 기준이 된다.
 - 스프린트가 아직 생성되지 않은 항목은 Jira 에 쓰지 않고 `sprintlog plan local save` 로 저장한다(`sprint` 는 `sprint resolve` 의 `next`).
+- 승인된 항목을 스프린트에 올릴 때 함께 맞춘다. 서브태스크는 부모를 따라 스프린트에 들어가므로 부모 티켓만 배정한다.
+  - 스프린트: 부모 티켓을 해당 스프린트에 배정한다.
+  - 상태: 백로그 상태면 할 일 단계로 전환한다. 전환 이름은 `getTransitionsForJiraIssue` 로 찾고 하드코딩하지 않는다. 진행 중 이상은 건드리지 않는다.
+  - 담당자: 비어 있고 상태가 할 일 단계인 티켓·서브태스크만 나로 채운다. 남이 담당인 항목은 바꾸지 않는다.
+  - 이 세 가지도 날짜와 같은 차이 표에 넣어 함께 승인받는다.
 
 ## 6. 로컬 계획 반영
 
