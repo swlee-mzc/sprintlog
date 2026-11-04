@@ -83,7 +83,7 @@
       }
     },
     "holidays": { "type": "array", "items": { "$ref": "#/$defs/date" } },
-    "fixedLines": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "fixedLines": { "type": "array", "items": { "type": ["string", "object"], "minLength": 1, "required": ["text"], "additionalProperties": false, "properties": { "text": { "type": "string", "minLength": 1 }, "from": { "$ref": "#/$defs/date" }, "to": { "$ref": "#/$defs/date" } } } },
     "labels": { "type": "object", "additionalProperties": { "type": "string", "minLength": 1 } }
   },
   "$defs": {

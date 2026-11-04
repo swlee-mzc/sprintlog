@@ -1,5 +1,5 @@
 import { addDays, md, weekday, weekDays } from './core/time.mjs';
-import { entryFor } from './notation.mjs';
+import { entryFor, fixedText } from './notation.mjs';
 
 const WIDE = [[0x1100, 0x115f], [0x2e80, 0xa4cf], [0xac00, 0xd7a3], [0xf900, 0xfaff], [0xfe30, 0xfe4f], [0xff00, 0xff60], [0xffe0, 0xffe6]];
 const charWidth = (cp) => (WIDE.some(([a, b]) => cp >= a && cp <= b) ? 2 : 1);
@@ -36,7 +36,9 @@ function weekModel(snapshot, week) {
   const rows = snapshot.features
     .map((f) => ({ label: f.label ?? f.summary, cells: days.map((d) => (holidays.has(d) ? null : entryFor(f, d))) }))
     .filter((r) => r.cells.some(Boolean));
-  const fixed = (snapshot.fixedLines ?? []).map((text) => ({ label: '고정', cells: days.map((d) => (holidays.has(d) ? null : { kind: 'fixed', text })) }));
+  const fixed = (snapshot.fixedLines ?? [])
+    .map((line) => ({ label: '고정', cells: days.map((d) => (holidays.has(d) || !fixedText(line, d) ? null : { kind: 'fixed', text: fixedText(line, d) })) }))
+    .filter((r) => r.cells.some(Boolean));
   const hours = days.map((d) => snapshot.hours?.[d] ?? null);
   return { days, rows: [...rows, ...fixed], hours };
 }

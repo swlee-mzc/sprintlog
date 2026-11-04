@@ -49,6 +49,12 @@ export function entryFor(feature, date) {
   return null;
 }
 
+// 고정 문구는 문자열(모든 근무일) 또는 { text, from?, to? }(그 기간의 근무일). 완료 표기가 붙지 않는다.
+export const fixedText = (line, date) =>
+  typeof line === 'string' ? line : (!line.from || date >= line.from) && (!line.to || date <= line.to) ? line.text : null;
+
+const fixedEntry = (text) => ({ kind: 'fixed', text, strike: false, key: null });
+
 export function notation({ week, subtasks, labels = {}, planned = [], planMode = 'fill', fixedLines = [], holidays = [] }) {
   const days = weekDays(week);
   const open = new Set(workdays(days[0], days.at(-1), holidays));
@@ -56,7 +62,10 @@ export function notation({ week, subtasks, labels = {}, planned = [], planMode =
   const cells = {};
   for (const d of days) {
     cells[d] = open.has(d) ? list.map((f) => entryFor(f, d)).filter(Boolean) : [];
-    if (open.has(d)) for (const text of fixedLines) cells[d].push({ kind: 'fixed', text, strike: false, key: null });
+    if (open.has(d)) for (const line of fixedLines) {
+      const text = fixedText(line, d);
+      if (text) cells[d].push(fixedEntry(text));
+    }
   }
   const nextFrom = addDays(days[0], 7);
   const nextTo = addDays(days[0], 11);
@@ -66,6 +75,10 @@ export function notation({ week, subtasks, labels = {}, planned = [], planMode =
       const label = f.label ?? f.summary;
       return { kind: f.due <= nextTo ? 'due' : 'progress', text: f.due <= nextTo ? `[완료] ${label}` : label, strike: false, key: f.key };
     });
+  const nextOpen = workdays(nextFrom, nextTo, holidays);
+  for (const line of fixedLines) {
+    if (typeof line !== 'string' && nextOpen.some((d) => fixedText(line, d))) next.push(fixedEntry(line.text));
+  }
   return {
     week: { days, next: { from: nextFrom, to: nextTo } },
     features: list,

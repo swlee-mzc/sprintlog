@@ -66,6 +66,17 @@ test('notation: 진행·완료 예정·고정 문구·차주 계획', () => {
   assert.deepEqual(later.next.map((e) => e.text), ['[완료] 기능 A']);
 });
 
+test('고정 문구: 기간을 주면 그 근무일에만 완료 표기 없이 들어가고, 다음 주에 걸치면 차주 계획에도 들어간다', () => {
+  const qa = { text: 'QA 버그 수정', from: '2026-11-11', to: '2026-11-17' };
+  const out = notation({ week: '2026-11-09', subtasks: [], fixedLines: ['반복', qa] });
+  assert.deepEqual(out.cells['2026-11-10'].map((e) => e.text), ['반복']);
+  assert.deepEqual(out.cells['2026-11-11'].map((e) => e.text), ['반복', 'QA 버그 수정']);
+  assert.ok(out.cells['2026-11-13'].every((e) => e.kind === 'fixed'));
+  assert.deepEqual(out.next, [{ kind: 'fixed', text: 'QA 버그 수정', strike: false, key: null }]);
+  const md = renderWeek({ syncedAt: '2026-11-09T00:00:00Z', features: [], fixedLines: [{ text: '다음 주만', from: '2026-11-16' }] }, { week: '2026-11-09', format: 'md' });
+  assert.ok(!md.includes('다음 주만'));
+});
+
 test('notation: 지연은 원래 예정일 칸에, 완료되면 지연 여부와 상관없이 취소선', () => {
   const s = st('PROJ-2', { dueDate: '2026-11-13', originalDueDate: '2026-11-11' });
   const open = notation({ week: '2026-11-09', subtasks: [s], labels: { 'PROJ-1': '기능 A' } });
