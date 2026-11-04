@@ -9,7 +9,7 @@ CLI 는 `node ${CLAUDE_PLUGIN_ROOT}/bin/sprintlog.mjs`(아래 `sprintlog`). 표�
 
 ## 0. 시작 점검
 
-`sprintlog:plan` 0절과 같다(doctor → sprint resolve → plan local apply-ready). `ended` 면 `sprintlog:close` 를 먼저 한다. 스프린트 종료 정리는 `close` 가, 주중 점검은 2절이 맡는다.
+`sprintlog:plan` 0절과 같다(doctor → sprint resolve → plan local apply-ready). `ended` 면 `sprintlog:close` 를 먼저 한다. 스프린트 종료 정리는 `close` 가, 주중 Jira 점검은 `sprintlog:check` 가 맡는다.
 
 ## 1. 수집
 
@@ -23,24 +23,12 @@ CLI 는 `node ${CLAUDE_PLUGIN_ROOT}/bin/sprintlog.mjs`(아래 `sprintlog`). 표�
    - `noEvidenceDays` 는 "근거 없음 — 확인 필요"로 사용자에게 묻는다. 빈 날로 넘기지 않는다.
    - `worklog-truncated`·`comment-truncated` 는 해당 티켓을 단건으로 다시 조회한다.
 
-## 2. 계획 대비 점검
+## 2. 점검 확인
 
-시트를 만들기 전에 Jira 가 실제 진행과 맞는지 먼저 맞춘다. 판정은 CLI 가, 새 기한처럼 사람이 정할 값은 사용자가 정한다.
+Jira 가 실제 진행과 맞아야 시트가 맞다. `sprintlog:check` 의 1절 수집을 더해 `sprintlog check` 를 읽기 전용으로 실행한다.
 
-1. 내 티켓의 부모 스토리는 담당자 조건 없이 `parent in (...)` 로 서브태스크 전체를 조회해 facts 에 함께 넣는다. 남의 서브태스크가 남았는데 부모를 완료로 제안하지 않기 위해서다.
-2. 검토 단계(`jira.reviewStatuses`) 티켓은 코멘트·개발 정보에서 PR 을 찾아 forge 에서 머지 여부를 확인한다. 머지면 `true`, 열려 있으면 `false`, PR 을 못 찾으면 넣지 않는다.
-3. `sprintlog check` 에 `today`, `subtasks`(facts 출력), `merged`(`{ 키: true|false }`)를 넣는다.
-
-| `action` | 할 일 |
-|---|---|
-| `transition-done` | 완료로 전환한다. 기한이 지났으면 기한을 실제 완료일로 갱신해 지연을 남긴다. 실적 종료 시각이 머지 시각과 다르면 맞춘다 |
-| `transition-parent-done` | 서브태스크가 모두 끝났다. 부모를 완료로 전환한다. 바로 갈 수 없으면 `getTransitionsForJiraIssue` 로 거쳐야 할 단계를 찾는다 |
-| `set-due` | 기한이 지났는데 끝나지 않았다. 새 기한을 묻고 값을 갱신한다(지우지 않는다) |
-| `confirm-today` | 오늘이 기한이다. 끝났으면 완료, 아니면 새 기한을 묻는다 |
-| `check-pr` | 검토 중인데 머지 근거가 없다. PR 을 묻거나 확인한 뒤 다시 실행한다 |
-
-4. 조치를 차이 표(티켓·현재 → 변경)로 보여 주고 승인받은 뒤 쓴다. 완료 전환 때 비어 있는 Fix Version 이 있으면 함께 묻는다.
-5. 쓴 티켓만 다시 조회해 facts 를 다시 만든다. 그다음 판정으로 간다.
+- 조치가 0건이면 3절로 간다.
+- 조치가 있으면 목록을 보여 주고 멈춘 뒤 `sprintlog:check` 를 먼저 하도록 안내한다. 사용자가 그대로 진행을 고르면 지금 Jira 상태로 3절을 진행한다.
 
 ## 3. 판정
 
