@@ -2,6 +2,7 @@ import { existsSync, statSync } from 'node:fs';
 import { delimiter, join } from 'node:path';
 import { loadProfile, profilePath } from './profile.mjs';
 import { isStale, loadSnapshot } from './snapshot.mjs';
+import { readLocal } from './local.mjs';
 import { listPlans } from './plans.mjs';
 
 const onPath = (bin) => (process.env.PATH ?? '').split(delimiter).some((d) => d && existsSync(join(d, bin)));
@@ -25,7 +26,13 @@ export function doctor() {
   if (profile?.workflow?.configPath) {
     add('workflow-config', existsSync(profile.workflow.configPath) ? 'ok' : 'warn', profile.workflow.configPath);
   }
-  if (profile?.sheet?.format === 'xlsx' && !profile.sheet.workUrl) add('sheet-work-copy', 'warn', 'xlsx 대상은 sheet.workUrl(작업본)이 필요함');
+  if (profile) {
+    try {
+      const local = readLocal(profile);
+      add('local-log', local.status === 'ok' ? 'ok' : 'warn', `${local.config.workbookPath} — ${local.status}; unscheduled ${local.unscheduled.length}; ${local.legacyStatus}`);
+    } catch (e) { add('local-log', 'warn', e.message); }
+  }
+  if (profile?.sheet?.format === 'xlsx' && !profile.sheet.workUrl) add('sheet-work-copy', 'warn', 'Google 2단계 자동 전달 시 sheet.workUrl(작업본)을 확인한다. 로컬 동기화는 가능함');
 
   const snap = loadSnapshot();
   if (!snap) add('snapshot', 'warn', '스냅샷 없음 — plan·sync 를 한 번 실행한다');

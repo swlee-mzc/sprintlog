@@ -1,7 +1,7 @@
 {
   "name": "sprintlog",
-  "version": "0.1.6",
-  "description": "Jira 스프린트에 다음 주까지의 업무 계획을 날짜 단위로 적고, 그 진행 기록을 주간 현황 시트에 동기화한다. 결정적 처리는 내장 CLI 가 맡는다. Claude Code 전용(claude.ai Atlassian·Google Sheets·Google Drive 커넥터 필요).",
+  "version": "0.2.0",
+  "description": "대화로 확정한 주간 로그와 미배정을 로컬 Excel에 보관하고 주간 현황만 Google 시트에 전달한다.",
   "author": {
     "name": "swlee"
   },

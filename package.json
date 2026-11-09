@@ -1,7 +1,7 @@
 {
   "name": "sprintlog",
-  "version": "0.1.6",
-  "description": "Plan sprint work in Jira by day and sync progress to a weekly status sheet (Claude Code plugin with CLI)",
+  "version": "0.2.0",
+  "description": "대화로 확정한 주간 로그와 미배정을 로컬 Excel에 보관하고 주간 현황만 Google 시트에 전달한다.",
   "type": "module",
   "license": "MIT",
   "bin": {
@@ -13,7 +13,13 @@
   "files": [
     "bin",
     "src",
-    "schemas"
+    "schemas",
+    "scripts",
+    "requirements.txt",
+    "skills",
+    "references",
+    ".claude-plugin",
+    "config"
   ],
   "scripts": {
     "test": "node --test 'tests/*.test.mjs'"

@@ -7,10 +7,18 @@ description: sprintlog 의 전제(커넥터·프로필·워크플로우 플러�
 
 CLI 는 `node ${CLAUDE_PLUGIN_ROOT}/bin/sprintlog.mjs` 로 부른다(아래 `sprintlog`). 판정·검증은 CLI 가 하고, 이 스킬은 커넥터 조회와 사용자 확인만 한다.
 
+## 0. 로컬 설정
+
+[로컬 로그 계약](../../references/local-log.md)을 읽는다. 설정에 `local.workbookPath`(개인 sprint-log.xlsx 절대 경로), `local.recordsPath`(기존 실행 기록 디렉터리), `local.python`(기본 python3)을 명시한다. 미배정 정본은 Excel의 unscheduled 탭이고 기존 기록은 조회·보존 대상으로 남긴다. 기존 unscheduled를 찾기 전에 새 Todo 저장소를 만들지 않는다.
+
+Python 3와 openpyxl>=3.1이 필요하다. 기존 Python에 설치돼 있으면 사용한다. 없으면 `${CLAUDE_CONFIG_DIR}/sprintlog/python`에 `python3 -m venv`로 전용 환경을 만들고 그 환경의 Python으로 `-m pip install -r ${CLAUDE_PLUGIN_ROOT}/requirements.txt`를 실행한다. `local.python`을 그 실행 파일의 절대 경로로 저장한다. 설치된 플러그인 소스나 시스템 Python 패키지를 직접 수정하지 않는다.
+
+설정 후 `local read`로 경로·기존 미배정·파일 상태를 확인한다. 없는 workbook은 첫 확정 저장 때 만들며 자동으로 빈 목록이라고 단정하지 않는다. 로컬 단계는 Google 연결 없이 완료할 수 있다.
+
 ## 1. 전제 점검
 
 1. `sprintlog doctor --json` 을 실행해 결과를 그대로 보여 준다. `fail` 이 있으면 해당 항목부터 해결한다.
-2. 커넥터를 가벼운 조회로 확인한다. 도구가 없거나 실패하면 아래 안내를 하고 멈춘다.
+2. 커넥터를 가벼운 조회로 확인한다. 도구가 없거나 실패하면 해당 외부 작업만 보류한다. 로컬 조회·확정·Excel 저장은 계속한다.
    | 커넥터 | 확인 호출 | 없을 때 안내 |
    |---|---|---|
    | Atlassian | 현재 사용자 조회 | claude.ai 커넥터에서 Atlassian 을 연결한 뒤 Claude Code 를 다시 시작 |
@@ -33,14 +41,15 @@ CLI 는 `node ${CLAUDE_PLUGIN_ROOT}/bin/sprintlog.mjs` 로 부른다(아래 `spr
 - 시트: URL, 주차 탭 이름 규칙(`{M}`·`{N}`), 머리행 번호, 이름 열, 시트상의 내 이름, 차주 계획 열 머리.
 - 하루 가용 시간(기본 8, 최대 16), 휴일, 고정 문구(완료 표기 없이 근무일마다 들어가는 줄. 기간이 있으면 `{ "text", "from", "to" }`).
 
-## 4. 반영 방식 (대상이 xlsx 일 때)
+## 4. Google 2단계 전달 방식
 
 | 값 | 동작 |
 |---|---|
-| `paste` | 내 Google Sheets 작업본(`sheet.workUrl`)에 쓴 뒤 복사·붙여넣기를 안내 |
-| `agent` | 작업본에 쓴 뒤 에이전트가 화면 조작 도구로 붙여넣기. 붙여넣는 동안 그 브라우저를 사람이 쓰지 않아야 한다 |
+| `paste` | 주간 전용 로컬 Excel에서 사용자가 대상 개인 행에 복사·붙여넣기 |
+| `api` | 대상 Google Sheets API로 반영 후 값·취소선을 재조회 |
+| `agent` | 주간 전용 전달 파일 또는 Google 작업본에서 화면 조작으로 붙여넣기 후 검증 |
 
-작업본은 사용자가 원본에서 `파일 → Google Sheets로 저장` 으로 만들어 내 드라이브에 둔다.
+자동화에 Google 작업본이 필요하면 사용자가 원본에서 `파일 → Google Sheets로 저장` 으로 만들어 내 드라이브에 둔다.
 
 ## 5. 저장
 

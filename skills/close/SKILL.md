@@ -7,6 +7,10 @@ description: 추적 스프린트의 종료일이 지났을 때 내 티켓을 판
 
 CLI 는 `node ${CLAUDE_PLUGIN_ROOT}/bin/sprintlog.mjs`(아래 `sprintlog`). 조치는 `sprintlog close classify` 판정표가 정한다. 판정표대로 실행하고 결과를 보고한다. 항목마다 사용자 확인을 받지 않는다. 판정 근거가 없는 항목은 실행하지 않는다.
 
+## 로컬 맥락
+
+작업 전에 `sprintlog local read`로 설정된 Excel과 기존 실행 기록의 unscheduled를 확인한다. 저장 위치는 setup과 [로컬 로그 계약](../../references/local-log.md)을 따른다. 미배정은 로컬 보관 전용이며 Jira·Google 대상에 넣지 않는다. 사용자와 확정한 로컬 변경은 sync의 1단계로 저장하고 Google 전달은 별도로 진행한다.
+
 ## 1. 대상
 
 - `sprintlog sprint resolve` 의 `current` 가 대상 스프린트다(`ended`, 또는 Jira 에서 이미 닫힘).

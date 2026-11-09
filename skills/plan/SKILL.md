@@ -7,6 +7,10 @@ description: 이번 주부터 다음 주까지의 업무를 내 티켓 단위(�
 
 CLI 는 `node ${CLAUDE_PLUGIN_ROOT}/bin/sprintlog.mjs`(아래 `sprintlog`). 날짜·배치·경고는 CLI 가 정한다. LLM 은 대상·순서·시간을 제안하고, CLI 가 만든 표를 바꾸지 않고 보여 준다.
 
+## 로컬 맥락
+
+작업 전에 `sprintlog local read`로 설정된 Excel과 기존 실행 기록의 unscheduled를 확인한다. 저장 위치는 setup과 [로컬 로그 계약](../../references/local-log.md)을 따른다. 미배정은 로컬 보관 전용이며 Jira·Google 대상에 넣지 않는다. 사용자와 확정한 로컬 변경은 sync의 1단계로 저장하고 Google 전달은 별도로 진행한다.
+
 ## 0. 시작 점검
 
 1. `sprintlog doctor` 가 `fail` 이면 `sprintlog:setup` 으로 보낸다.
