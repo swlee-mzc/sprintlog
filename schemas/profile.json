@@ -3,6 +3,8 @@
   "additionalProperties": false,
   "required": ["jira", "sprint", "sheet", "capacity"],
   "properties": {
+    "local": {"type": "object", "additionalProperties": false, "required": ["workbookPath", "recordsPath"], "properties": {"workbookPath": {"type": "string", "minLength": 1}, "recordsPath": {"type": "string", "minLength": 1}, "python": {"type": "string", "minLength": 1}}},
+    "countScopes": {"type": "object", "additionalProperties": {"type": "array", "items": {"type": "string", "minLength": 1}}},
     "jira": {
       "type": "object",
       "additionalProperties": false,

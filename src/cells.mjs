@@ -49,6 +49,25 @@ function signature(runs, length) {
   return ranges.join(',');
 }
 
+// 알려지지 않은 기존 줄도 유지한다. 동일 티켓 또는 동일 문구만 최신 입력으로 대체한다.
+function preserveEntries(entries, before, runs, bullet) {
+  const merged = [...entries];
+  let offset = 0;
+  for (const line of before.split('\n')) {
+    const text = line.startsWith(bullet) ? line.slice(bullet.length) : line;
+    const match = / \(([A-Za-z][A-Za-z0-9_]*-\d+)\)$/.exec(text);
+    const key = match?.[1] ?? null;
+    const label = match ? text.slice(0, match.index) : text;
+    if (label && !entries.some((e) => (key && e.key === key) || e.text === label)) {
+      const format = [...(runs ?? [])].filter((r) => (r.startIndex ?? 0) <= offset).at(-1)?.format;
+      const kind = label.startsWith('[완료-지연(') ? 'delayed' : label.startsWith('[완료]') ? 'due' : 'progress';
+      merged.push({ kind, text: label, key, strike: kind !== 'progress' && Boolean(format?.strikethrough) });
+    }
+    offset += line.length + 1;
+  }
+  return merged;
+}
+
 // header·names·current 는 A열 1행부터 읽은 값이어야 한다(get_values 의 'tab'!A{행}:… 와 'tab'!{이름열}1:…).
 export function cells({ notation, sheet, profile, header, names, current = [], currentRuns = null }) {
   const cfg = { nextHeader: '차주 계획', bullet: '- ', ...profile };
@@ -72,8 +91,9 @@ export function cells({ notation, sheet, profile, header, names, current = [], c
   for (const [k, entries] of targets) {
     if (entries === null) continue;
     const col = columns[k];
-    const { text, runs } = cellText(entries, cfg.bullet, cfg.ticketBase);
     const before = String(current[col] ?? '');
+    const preserved = preserveEntries(entries, before, currentRuns?.[col], cfg.bullet);
+    const { text, runs } = cellText(preserved, cfg.bullet, cfg.ticketBase);
     // 현재 서식을 모르면 내용이 있는 칸은 다시 써서 서식을 보장한다.
     const changed = Array.isArray(currentRuns) ? before !== text || signature(currentRuns[col], before.length) !== signature(runs, text.length) : before !== text || text.length > 0;
     const a1 = `${colLetter(col)}${rowIndex + 1}`;

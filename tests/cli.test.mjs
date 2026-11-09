@@ -110,3 +110,16 @@ test('leak-check: 레포 밖 패턴으로 추적 예정 파일을 검사', () =>
   assert.deepEqual(JSON.parse(r.stdout).hits, [{ file: 'a.md', line: 2, pattern: 1 }]);
   assert.ok(!r.stderr.includes('secret-corp.example'));
 });
+
+
+test('local 명령: 설정 부재와 미확정 쓰기는 실패하고 새 파일은 확정 후 저장한다', () => {
+  const e = withProfile();
+  assert.equal(run(e, ['local', 'read']).status, 3);
+  assert.equal(run(e, ['config', 'set', 'local', JSON.stringify({ workbookPath: join(e.root, 'log.xlsx'), recordsPath: join(e.root, 'records') })]).status, 0);
+  const read = run(e, ['local', 'read']);
+  assert.equal(read.status, 1);
+  assert.equal(JSON.parse(read.stdout).legacyStatus, 'missing-records');
+  assert.equal(run(e, ['local', 'sync'], { revision: null }).status, 3);
+  assert.equal(run(e, ['local', 'sync'], { confirmed: true, revision: null, unscheduled: [{ title: '메모' }] }).status, 0);
+  assert.equal(JSON.parse(run(e, ['local', 'read']).stdout).unscheduled[0].title, '메모');
+});

@@ -1,60 +1,34 @@
 ---
 name: sync
-description: Jira 현황과 개인 프로필을 기준으로 주간 현황 시트의 내 행(월~금, 차주 계획)을 갱신하고, 내게 달린 시트 댓글의 답변 초안을 만든다. 주간 보고 전이나 원하는 시점에 사용한다.
+description: 사용자와 확정한 주간 현황과 미배정을 로컬 Excel에 저장하고, 주간 로그만 Google 시트에 수동 또는 자동 전달한다.
 ---
 
 # sprintlog:sync
 
-CLI 는 `node ${CLAUDE_PLUGIN_ROOT}/bin/sprintlog.mjs`(아래 `sprintlog`). 표기(`[완료]`·지연·취소선·차주)와 셀 위치·취소선 위치는 CLI 가 정한다. LLM 은 기능명만 다듬고, 날짜·기호·취소선 여부를 정하지 않는다. 표기 규칙은 `references/sheet-rules.md`.
+CLI는 `node ${CLAUDE_PLUGIN_ROOT}/bin/sprintlog.mjs`(아래 sprintlog). [로컬 로그 계약](../../references/local-log.md)과 [표기 규칙](../../references/sheet-rules.md)을 읽는다.
 
-## 0. 시작 점검
+## 1. 현재 상태와 근거
 
-`sprintlog:plan` 0절과 같다(doctor → sprint resolve → plan local apply-ready). `ended` 면 `sprintlog:close` 를 먼저 한다. 스프린트 종료 정리는 `close` 가, 주중 Jira 점검은 `sprintlog:check` 가 맡는다.
+`local read --week <월요일>`로 설정 경로·기존 주차·unscheduled·revision을 먼저 확인한다. local 설정이나 Excel 처리 환경이 없으면 setup의 로컬 설정부터 완료한다. Google 인증 실패로 이 단계를 막지 않는다.
 
-## 1. 수집
+사용자가 Jira 현황 갱신을 요청한 경우 프로필의 계정·필드로 티켓과 담당 서브태스크·기한 이력·PR 근거를 수집해 `facts`와 `check`를 실행한다. 잘린 응답은 필요한 티켓만 추가 조회한다. 조치가 남으면 사용자와 대조하고 check로 정리하거나 현재 상태로 보고할지 확인한다. 미배정만 추가하는 요청에는 Jira 조회나 스프린트 종료 정리를 요구하지 않는다.
 
-1. 대상 주를 정한다(기본: 오늘이 속한 주). `from`=월요일, `to`=금요일.
-2. Jira 를 조회한다. fields 에 `summary`, `status`, `issuetype`, `parent`, `assignee`, `reporter`, `created`, `resolutiondate`, `worklog`, `comment` 와 프로필의 스프린트·시작 날짜·기한 필드를 넣는다.
-   - 추적 스프린트의 내 티켓, 그 부모 역조회로 찾은 내 서브태스크, 다음 주에 일정이 걸친 내 티켓.
-   - 그 주에 워크로그를 남긴 티켓(`worklogAuthor = currentUser() AND worklogDate >= from AND worklogDate <= to`).
-   - 기한 이력이 필요한 티켓은 단건 조회에 `expand=changelog`.
-3. 응답이 크면 파일로 저장된다. 그 경로를 그대로 쓰고, 작은 응답만 파일로 옮겨 적는다.
-4. `sprintlog facts --from <월> --to <금> <응답 파일...>` 을 실행한다.
-   - `noEvidenceDays` 는 "근거 없음 — 확인 필요"로 사용자에게 묻는다. 빈 날로 넘기지 않는다.
-   - `worklog-truncated`·`comment-truncated` 는 해당 티켓을 단건으로 다시 조회한다.
+## 2. 대화로 확정
 
-## 2. 점검 확인
+기존 주간 로그와 수동 항목을 포함해 변경표를 보여 준다. 보류·검토 중 항목을 빼지 않는다. CLI `notation`으로 표기 초안을 만들고, 사용자가 정한 보고 일정과 실제 완료 근거를 구분한다. 새 기능명은 승인 후 `labels set`으로 저장한다. `countScopes`로 누적 집계 대상을 고정하고 대상 티켓이 누락되면 다시 수집한다.
 
-Jira 가 실제 진행과 맞아야 시트가 맞다. `sprintlog:check` 의 1절 수집을 더해 `sprintlog check` 를 읽기 전용으로 실행한다.
+사용자가 확정하면 같은 범위를 다시 묻지 않고 3단계로 간다. 미확정 내용은 로컬 확정 데이터를 덮어쓰지 않는다. unscheduled는 별도로 확인하며 Jira·Google에 연결하지 않는다.
 
-- 조치가 0건이면 3절로 간다.
-- 조치가 있으면 목록을 보여 주고 멈춘 뒤 `sprintlog:check` 를 먼저 하도록 안내한다. 사용자가 그대로 진행을 고르면 지금 Jira 상태로 3절을 진행한다.
+## 3. 1단계 — 로컬 Excel
 
-## 3. 판정
+확정한 notation과 미배정 변경을 `confirmed:true`, `local read`의 revision과 함께 `local sync`에 넣는다. 저장 결과의 주차·미배정·취소선을 확인하고 로컬 경로를 보고한다. 기존 항목과 다른 주차를 보존한다. 파일 수정 충돌은 다시 읽고 사용자 확정 내용과 대조한다.
 
-1. `sprintlog notation` 에 `week`(월요일), `subtasks`(facts 출력), `planned`(`sprintlog plan local list` 의 반영 전 항목)를 넣는다.
-2. `missingLabels` 가 있으면 기능명을 간단명료하게 제안해(티켓 키는 CLI 가 붙이므로 넣지 않는다) `[{ "key", "label" }]` JSON 으로만 내고 사용자 확인 후 `sprintlog labels set --in <파일>` 로 고정한다. 기능명에 `[완료`, `]`, `~~`, 줄바꿈을 넣지 않는다(CLI 가 거부한다). 그런 다음 notation 을 다시 실행한다.
+## 4. 2단계 — Google 시트
 
-## 4. 칸 조립
+요청 또는 기존 승인 범위에 Google 전달이 있으면 로컬 로그 계약의 전달 절차를 따른다. paste는 주간 전용 파일과 복사 범위·대상 위치를 안내한다. api/agent는 저장된 주간 로그로 요청을 만들고 반영 후 재조회해 `google-verified`를 확인한다.
 
-1. `sprintlog sheet target --week <월요일>` 으로 시트 ID·탭·읽을 범위를 얻는다.
-2. Sheets 커넥터로 읽는다: `get_spreadsheet`(fields `sheets.properties.sheetId`, `sheets.properties.title`) 로 탭의 sheetId, `get_values` 로 `ranges.header`, `ranges.names`, 내 행 전체(A열부터). 내 행의 서식도 `get_spreadsheet`(`includeGridData`, 해당 행 범위, fields `sheets.data.rowData.values.textFormatRuns`)로 읽어 열 순서대로 `currentRuns` 에 넣는다. 넣지 않으면 CLI 는 서식을 확인할 수 없어 내용이 있는 칸을 모두 다시 쓴다.
-3. `sprintlog cells` 에 `notation`, `sheet {sheetId, title}`, `header`, `names`, `current`, `currentRuns` 를 넣는다.
-   - `error` 가 있으면(이름·열을 못 찾음) 쓰지 않고 멈춘다.
-4. `cells` 출력의 바뀐 칸(before → after)을 표로 보여 주고 승인받는다.
+권한 오류·사용자 붙여넣기 대기는 Google 미완료로만 보고한다. 로컬 성공을 되돌리지 않는다. 원본 Excel과 Google 작업본의 상태를 구별하며 unscheduled를 게시하지 않는다.
 
-## 5. 반영
+## 5. 마무리
 
-| `sheet.delivery` | 동작 |
-|---|---|
-| `api` | `update_spreadsheet` 에 `requests` 를 그대로 보낸다. 다시 읽어 값·취소선이 맞는지 확인한다 |
-| `paste` | 작업본에 `api` 와 같이 쓴 뒤, 작업본의 칸 범위와 대상 시트의 붙여넣을 위치(`cells` 의 a1)를 안내한다 |
-| `agent` | 작업본에 쓴 뒤 화면 조작 도구로 작업본 칸 복사 → 대상 시트 붙여넣기. 시작 전에 대상 브라우저 창·탭이 맞는지 화면으로 확인하고, 다른 탭이 앞에 있으면 멈춘다. 끝나면 대상 시트를 다시 읽어 확인한다 |
-
-## 6. 댓글
-
-대상 시트의 댓글을 읽어(`get_spreadsheet` 의 `commentsIncluded`, 안 되면 Drive `read_file_content` 의 `includeComments`) 내 행·나를 향한 것만 고른다. 근거(티켓 상태·일정)를 붙인 답변 초안을 보여 준다. 답글 게시 도구가 없으면 게시는 사용자가 한다.
-
-## 7. 마무리
-
-notation 의 `features` 와 일정 시간으로 `sprintlog snapshot save` 를 실행해 `sprintlog week` 가 최신 상태를 보이게 한다.
+Jira 기반 facts·notation을 갱신한 경우 확정된 features로 `snapshot save`도 실행한다. 로컬 완료와 Google 완료/대기를 따로 보고한다. 시트 댓글 답변이 요청되면 근거를 붙인 초안을 만들고, 별도 게시 권한 없이 댓글을 전송하지 않는다.

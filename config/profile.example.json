@@ -11,7 +11,10 @@
       "startDatetime": null,
       "endDatetime": null
     },
-    "reviewStatuses": ["Review", "In Review"]
+    "reviewStatuses": [
+      "Review",
+      "In Review"
+    ]
   },
   "workflow": {
     "plugin": null,
@@ -22,7 +25,10 @@
     "boardId": null,
     "namePattern": "Sprint_{n}",
     "lengthWeeks": 2,
-    "anchor": { "n": 1, "start": "2026-01-05" },
+    "anchor": {
+      "n": 1,
+      "start": "2026-01-05"
+    },
     "endWeekday": "fri",
     "trackedId": null
   },
@@ -38,8 +44,16 @@
     "nextHeader": "차주 계획",
     "bullet": "- "
   },
-  "capacity": { "hoursPerDay": 8, "maxHoursPerDay": 16 },
+  "capacity": {
+    "hoursPerDay": 8,
+    "maxHoursPerDay": 16
+  },
   "holidays": [],
   "fixedLines": [],
-  "labels": {}
+  "labels": {},
+  "local": {
+    "workbookPath": "/absolute/path/to/sprint-log.xlsx",
+    "recordsPath": "/absolute/path/to/sprintlog/records",
+    "python": "python3"
+  }
 }

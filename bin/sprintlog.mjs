@@ -14,6 +14,7 @@ import { check as checkPlan } from '../src/check.mjs';
 import { applyReady, listPlans, markApplied, savePlan } from '../src/plans.mjs';
 import { isStale, loadSnapshot, saveSnapshot } from '../src/snapshot.mjs';
 import { renderSprint, renderWeek } from '../src/render.mjs';
+import { readLocal, syncLocal, deliverLocal } from '../src/local.mjs';
 import { doctor } from '../src/doctor.mjs';
 import { leakCheck, loadPatterns, patternsPath } from '../src/leak.mjs';
 
@@ -39,6 +40,9 @@ const HELP = `sprintlog — 스프린트 계획과 주간 현황 시트 동기�
   close classify                스프린트 종료 판정표
   labels set                    LLM 기능명 검증 후 프로필 반영
   plan local save|list|apply-ready|mark-applied --sprint <이름> --keys <a,b>
+  local read [--week <날짜>]    로컬 로그·미배정·기존 기록 조회
+  local sync                    확정한 주간 로그·미배정 → 로컬 Excel
+  local delivery --week <날짜>  주간 전용 전달 파일·Google 요청/검증
   snapshot save
 
 공통 옵션: --in <파일>(없으면 표준 입력), --today <날짜>, --json, --md, --no-color
@@ -122,7 +126,7 @@ const COMMANDS = {
   notation: machine('notation', (o, _, log, ctx) => {
     const p = loadProfile();
     ctx.input = input(o, 'notation-input');
-    const out = notation({ labels: p.labels ?? {}, fixedLines: p.fixedLines ?? [], holidays: p.holidays ?? [], ...ctx.input });
+    const out = notation({ labels: p.labels ?? {}, fixedLines: p.fixedLines ?? [], holidays: p.holidays ?? [], countScopes: p.countScopes ?? {}, ...ctx.input });
     for (const m of out.missingLabels) log('label', 'warn', { key: m.key, reason: 'missing-label' });
     for (const k of out.unscheduled) log('schedule', 'warn', { key: k, reason: 'unscheduled' });
     log('notation', out.missingLabels.length || out.unscheduled.length ? 'warn' : 'ok', { features: out.features.length });
@@ -219,6 +223,25 @@ const COMMANDS = {
     const out = markApplied(o.sprint, o.keys.split(',').map((k) => k.trim()).filter(Boolean));
     log('applied', 'ok', { sprint: o.sprint, applied: out.applied.length });
     return { output: out, exit: EXIT.OK };
+  }),
+
+  'local read': machine('local read', (o, _, log) => {
+    const out = readLocal(loadProfile(), o.week);
+    log('read', out.status === 'ok' ? 'ok' : 'warn', { status: out.status, unscheduled: out.unscheduled.length });
+    return { output: out, exit: out.status === 'ok' ? EXIT.OK : EXIT.ACTION };
+  }),
+  'local sync': machine('local sync', (o, _, log, ctx) => {
+    ctx.input = input(o);
+    const out = syncLocal(loadProfile(), ctx.input);
+    log('sync', 'ok', { weeks: out.weeks.length, unscheduled: out.unscheduled.length });
+    return { output: out, exit: EXIT.OK };
+  }),
+  'local delivery': machine('local delivery', (o, _, log, ctx) => {
+    if (!o.week) throw new Failure(EXIT.INPUT, '--week 가 필요함');
+    ctx.input = o.in ? input(o, 'cells-input') : null;
+    const out = deliverLocal(loadProfile(), o.week, ctx.input);
+    log('delivery', out.stage === 'google-verified' ? 'ok' : 'warn', { stage: out.stage });
+    return { output: out, exit: out.stage === 'google-verified' ? EXIT.OK : EXIT.ACTION };
   }),
 
   'snapshot save': machine('snapshot save', (o, _, log, ctx) => {

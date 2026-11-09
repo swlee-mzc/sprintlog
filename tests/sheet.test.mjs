@@ -231,3 +231,27 @@ test('notation: 그 주 전에 끝난 서브태스크는 기능 기간에서 빠
   assert.equal(out.cells['2026-11-06'][0].text, '[완료] 기능 A');
   assert.equal(out.features[0].done, false);
 });
+
+
+test('notation: 주말 실제 완료는 금요일 보고, 실제 완료일과 누적 집계 범위 보존', () => {
+  const out = notation({ week: '2026-11-02', subtasks: [
+    st('PROJ-2', { startDate: '2026-11-05', dueDate: '2026-11-09', originalDueDate: '2026-11-06', done: true, doneDate: '2026-11-07' }),
+    st('PROJ-3', { startDate: '2026-11-05', dueDate: '2026-11-09', originalDueDate: '2026-11-06', done: true, doneDate: '2026-11-08' }),
+    st('PROJ-4', { dueDate: '2026-10-30', done: true }),
+  ], labels: { 'PROJ-1': '기능' }, countScopes: { 'PROJ-1': ['PROJ-2', 'PROJ-3'] } });
+  assert.equal(out.cells['2026-11-05'][0].strike, false);
+  assert.equal(out.cells['2026-11-06'][0].text, '[완료] 기능 (2/2)');
+  assert.equal(out.cells['2026-11-06'][0].strike, true);
+  assert.equal(out.features[0].doneDate, '2026-11-08');
+  assert.equal(out.features[0].due, '2026-11-09');
+  assert.deepEqual(out.next, []);
+  assert.throws(() => notation({ week: '2026-11-02', subtasks: [st('PROJ-2')], countScopes: { 'PROJ-1': ['PROJ-9'] } }), /누락/);
+});
+
+test('cells: 보류·수동·미등록 기존 줄을 삭제하지 않는다', () => {
+  const n = notation({ week: '2026-11-09', subtasks: [] });
+  const out = cells({ notation: n, sheet: { sheetId: 1, title: '주간' }, profile: { memberName: '나' }, header: ['11/9','11/10','11/11','11/12','11/13','차주 계획'], names: ['나'], current: ['- 보류 작업', '', '', '', '', '- 기존 차주 계획'], currentRuns: [[], [], [], [], [], []] });
+  assert.equal(out.requests.length, 0);
+  assert.equal(out.cells[0].after, '- 보류 작업');
+  assert.equal(out.cells[5].after, '- 기존 차주 계획');
+});
