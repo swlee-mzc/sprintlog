@@ -18,7 +18,7 @@ const run = (e, args, stdin) => spawnSync(process.execPath, [BIN, ...args], { en
 const PROFILE = {
   jira: { cloudId: 'c', accountId: 'me-1', fields: { sprint: 'cf_sprint', startDate: 'cf_start', dueDate: 'duedate' } },
   sprint: { namePattern: 'S_{n}', lengthWeeks: 2, anchor: { n: 1, start: '2026-11-02' }, endWeekday: 'fri' },
-  sheet: { url: 'https://docs.google.com/spreadsheets/d/abc123/edit', format: 'sheets', delivery: 'api', tabPattern: '{M}월 {N}주', headerRow: 3, nameColumn: 'B', memberName: '나' },
+  sheet: { url: 'https://docs.google.com/spreadsheets/d/abc123/edit', format: 'sheets', delivery: 'api', tabName: '주간 로그', headerRow: 1, templateRow: 2, memberName: '나' },
   capacity: { hoursPerDay: 8, maxHoursPerDay: 16 },
 };
 
@@ -68,11 +68,12 @@ test('labels set: 표기 기호가 들어간 LLM 기능명은 거부', () => {
   assert.equal(run(e, ['config', 'get', 'labels.PROJ-1']).stdout.trim(), '기능 A');
 });
 
-test('sheet target: 주차 탭과 읽을 범위', () => {
+test('sheet target: 사용자별 고정 탭과 주차 열', () => {
   const out = JSON.parse(run(withProfile(), ['sheet', 'target', '--week', '2026-11-11']).stdout);
   assert.equal(out.spreadsheetId, 'abc123');
-  assert.equal(out.tab, '11월 2주');
-  assert.equal(out.ranges.header, "'11월 2주'!A3:Z3");
+  assert.equal(out.tab, '주간 로그');
+  assert.equal(out.ranges.header, "'주간 로그'!A1:H1");
+  assert.equal(out.ranges.weeks, "'주간 로그'!A2:A");
 });
 
 test('plan local: 저장 → 스프린트 생성 감지 → 반영 기록', () => {

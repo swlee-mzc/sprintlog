@@ -8,13 +8,14 @@ import { resolve } from '../src/sprint.mjs';
 import { schedule } from '../src/schedule.mjs';
 import { facts } from '../src/facts.mjs';
 import { notation } from '../src/notation.mjs';
-import { cells, tabTitle } from '../src/cells.mjs';
+import { cells } from '../src/cells.mjs';
 import { classify } from '../src/close.mjs';
 import { check as checkPlan } from '../src/check.mjs';
 import { applyReady, listPlans, markApplied, savePlan } from '../src/plans.mjs';
 import { isStale, loadSnapshot, saveSnapshot } from '../src/snapshot.mjs';
 import { renderSprint, renderWeek } from '../src/render.mjs';
 import { readLocal, syncLocal, deliverLocal } from '../src/local.mjs';
+import { syncSheets } from '../src/google.mjs';
 import { doctor } from '../src/doctor.mjs';
 import { leakCheck, loadPatterns, patternsPath } from '../src/leak.mjs';
 
@@ -35,6 +36,7 @@ const HELP = `sprintlog — 스프린트 계획과 주간 현황 시트 동기�
   facts --from <날짜> --to <날짜> [Jira 응답 파일...]
   notation                      칸별 표기 판정
   sheet target [--week <날짜>]  대상 시트·탭·읽을 범위
+  sheet sync --weeks <월요일,...> [--apply] [--replace]  Google API 미리보기·반영·검증
   cells                         Sheets 요청·차이표
   check                         주중 계획 대비 점검(기한 초과·오늘 기한·검토 중 머지·부모 완료)
   close classify                스프린트 종료 판정표
@@ -54,6 +56,9 @@ const OPTIONS = {
   from: { type: 'string' },
   to: { type: 'string' },
   week: { type: 'string' },
+  weeks: { type: 'string' },
+  apply: { type: 'boolean' },
+  replace: { type: 'boolean' },
   next: { type: 'boolean' },
   json: { type: 'boolean' },
   md: { type: 'boolean' },
@@ -140,7 +145,7 @@ const COMMANDS = {
     const s = p.sheet;
     const url = s.format === 'xlsx' ? s.workUrl : s.url;
     if (!url) throw new Failure(EXIT.PRECONDITION, 'xlsx 대상은 sheet.workUrl(Google Sheets 작업본)이 필요함');
-    const tab = tabTitle(s.tabPattern, week);
+    const tab = s.tabName ?? '주간 로그';
     const q = `'${tab.replace(/'/g, "''")}'`;
     const out = {
       spreadsheetId: sheetIdFromUrl(url),
@@ -149,16 +154,26 @@ const COMMANDS = {
       format: s.format,
       tab,
       week: weekDays(week),
-      ranges: { header: `${q}!A${s.headerRow}:Z${s.headerRow}`, names: `${q}!${s.nameColumn}1:${s.nameColumn}300` },
+      ranges: { header: `${q}!A${s.headerRow ?? 1}:H${s.headerRow ?? 1}`, weeks: `${q}!A2:A` },
     };
     log('target', 'ok', { tab, delivery: s.delivery });
+    return { output: out, exit: EXIT.OK };
+  }),
+
+  'sheet sync': machine('sheet sync', async (o, _, log, ctx) => {
+    const p = loadProfile();
+    const weeks = (o.weeks ?? o.week ?? '').split(',').map((w) => w.trim()).filter(Boolean);
+    if (!weeks.length) throw new Failure(EXIT.INPUT, '--week 또는 --weeks가 필요함');
+    ctx.input = { weeks, apply: Boolean(o.apply), replace: Boolean(o.replace) };
+    const out = await syncSheets(p, ctx.input);
+    log('google', 'ok', { stage: out.stage, changed: out.changed });
     return { output: out, exit: EXIT.OK };
   }),
 
   cells: machine('cells', (o, _, log, ctx) => {
     const p = loadProfile();
     ctx.input = input(o, 'cells-input');
-    const out = cells({ ...ctx.input, profile: { nextHeader: DEFAULTS.nextHeader, bullet: DEFAULTS.bullet, ...p.sheet, ticketBase: p.jira.site ?? null } });
+    const out = cells({ ...ctx.input, profile: { nextHeader: DEFAULTS.nextHeader, bullet: DEFAULTS.bullet, ...p.sheet, ticketBase: null } });
     if (out.error) {
       log('locate', 'fail', { error: out.error });
       return { output: out, exit: EXIT.ACTION };

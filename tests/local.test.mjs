@@ -82,13 +82,13 @@ test('Google 전달: 주간 전용 파일·미배정 격리·수동 대기·읽�
   assert.equal(out.stage, 'pending-user-paste');
   assert.equal(out.unscheduled, undefined);
   assert.ok(!JSON.stringify(out).includes('Bridge'));
-  const r = spawnSync('python3', ['-c', 'import openpyxl,sys; w=openpyxl.load_workbook(sys.argv[1],rich_text=True); assert w.sheetnames == ["전달"]; assert "Bridge" not in str(list(w.active.values)); assert any(getattr(getattr(r,"font",None),"strike",False) for r in w.active["E2"].value)', out.file], { encoding: 'utf8' });
+  const r = spawnSync('python3', ['-c', 'import openpyxl,sys; w=openpyxl.load_workbook(sys.argv[1],rich_text=True); assert w.sheetnames == ["전달"]; assert "Bridge" not in str(list(w.active.values)); assert any(getattr(getattr(r,"font",None),"strike",False) for r in w.active["F2"].value)', out.file], { encoding: 'utf8' });
   assert.equal(r.status, 0, r.stderr);
-  const target = { sheet: { sheetId: 1, title: '주간' }, header: ['이름', '11/2', '11/3', '11/4', '11/5', '11/6', '차주 계획'], names: ['나'], current: [] };
+  const target = { sheet: { sheetId: 1, title: '주간' }, header: ['주차', '월', '화', '수', '목', '금', '차주 계획', '이슈·요청'], names: ['2026-11-02'], current: [] };
   p.sheet.memberName = '나';p.sheet.delivery = 'api';
   const first = deliverLocal(p, '2026-11-02', target);
   assert.equal(first.stage, 'pending-api');
-  const current = ['나', ...first.cells.map((c) => c.after)];
+  const current = ['2026-11-02', ...first.cells.map((c) => c.after)];
   const currentRuns = [[], ...first.cells.map((c) => c.runs)];
   assert.equal(deliverLocal(p, '2026-11-02', { ...target, current, currentRuns }).stage, 'google-verified');
   assert.equal(deliverLocal(p, '2026-11-02', { ...target, current }).stage, 'pending-api');
@@ -105,4 +105,65 @@ test('Excel 저장 중 오류와 동시 실행 잠금은 원본 데이터를 손
   writeFileSync(p.local.workbookPath + '.lock', '');
   assert.throws(() => save(p), /잠금/);
   assert.deepEqual(readFileSync(p.local.workbookPath), before);
+});
+
+
+test('확정한 날짜 이동·제외는 명시적 replace만 제거하고 이슈·요청을 보존한다', (t) => {
+  const p = fixture(t);
+  const n = week();
+  n.cells['2026-11-02'] = [entry('이동할 업무', false, 'P-1')];
+  n.issues = '문서 리뷰 후 완료일 산정';
+  save(p, { notation: n });
+  const replacement = week();
+  replacement.cells['2026-11-05'] = [entry('이동할 업무', false, 'P-1')];
+  save(p, { notation: replacement, replace: true });
+  const out = readLocal(p, '2026-11-02').notation;
+  assert.deepEqual(out.cells['2026-11-02'], []);
+  assert.equal(out.cells['2026-11-05'][0].key, 'P-1');
+  assert.equal(out.issues, n.issues);
+});
+
+test('고정 Excel: 기존 행 서식·높이 보존, 신규 주차만 템플릿 복사', (t) => {
+  const p = fixture(t);save(p, { notation: week() });
+  const code = `import openpyxl,sys
+from openpyxl.styles import PatternFill,Alignment,Border,Side
+w=openpyxl.load_workbook(sys.argv[1],rich_text=True);s=w['주간 로그']
+s.row_dimensions[2].height=71.25;s.column_dimensions['B'].width=43
+s['B2'].fill=PatternFill('solid',fgColor='ABCDEF');s['B2'].alignment=Alignment(wrap_text=True,vertical='center')
+s['B2'].border=Border(bottom=Side(style='medium'))
+w.save(sys.argv[1])`;
+  assert.equal(spawnSync('python3', ['-c', code, p.local.workbookPath]).status, 0);
+  const changed = week();changed.cells['2026-11-02'] = [entry('[완료] 수정', true, 'P-1')];
+  save(p, { notation: changed });save(p, { notation: week('2026-11-09') });
+  const verify = `import openpyxl,sys
+w=openpyxl.load_workbook(sys.argv[1],rich_text=True);s=w['주간 로그']
+assert s.max_row==3
+assert s.row_dimensions[2].height==71.25 and s.row_dimensions[3].height==71.25
+assert s.column_dimensions['B'].width==43
+assert s['B2']._style==s['B3']._style
+assert s['B2'].fill.fgColor.rgb.endswith('ABCDEF')
+assert s['B2'].alignment.vertical=='center'
+assert s['B2'].border.bottom.style=='medium'
+assert 'P-1' in str(s['B2'].value)
+assert any(getattr(getattr(r,'font',None),'b',False) for r in s['B2'].value)`;
+  const r = spawnSync('python3', ['-c', verify, p.local.workbookPath], { encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+});
+
+test('구형 연도별 Excel은 백업 후 주간 행으로 이관하며 모든 실적·미배정 보존', (t) => {
+  const p = fixture(t);
+  const code = `import openpyxl,sys,datetime
+w=openpyxl.Workbook();s=w.active;s.title='2026'
+for i in range(5):s.cell(4,i+2,datetime.date(2026,11,2)+datetime.timedelta(days=i))
+s['A5']='2026-11-02';s['B5']='- 기존 업무 (P-1)';s['G4']='차주 계획';s['G5']='- 차주 업무'
+w.save(sys.argv[1])`;
+  assert.equal(spawnSync('python3', ['-c', code, p.local.workbookPath]).status, 0);
+  assert.equal(readLocal(p, '2026-11-02').notation.cells['2026-11-02'][0].key, 'P-1');
+  save(p, { notation: week('2026-11-09') });
+  assert.ok(existsSync(p.local.workbookPath + '.pre-fixed.bak'));
+  const out = readLocal(p, '2026-11-02');
+  assert.deepEqual(out.weeks, ['2026-11-02', '2026-11-09']);
+  assert.equal(out.notation.cells['2026-11-02'][0].key, 'P-1');
+  assert.equal(out.notation.next[0].text, '차주 업무');
+  assert.equal(out.unscheduled.length, 2);
 });

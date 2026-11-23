@@ -48,7 +48,9 @@ CLI 는 `node ${CLAUDE_PLUGIN_ROOT}/bin/sprintlog.mjs`(아래 `sprintlog`). 날�
 
 ## 4. 확인
 
-배치 결과로 스냅샷을 만들고(`sprintlog snapshot save`, 아래 형식) `sprintlog week --md` 와 `sprintlog week --next --md` 출력을 그대로 보여 준다. 경고는 표 아래에 CLI 로그 그대로 붙인다. 사용자가 조정하면 3절부터 다시 한다.
+[주간 검토 표](../../references/weekly-review.md)의 `요일 | 계획 | 실제 작업 결과 | 업데이트안`으로 기존 계획과 제안을 비교한다. 미래 날짜는 실적으로 표시하지 않는다.
+
+배치 결과로 스냅샷을 만들고(`sprintlog snapshot save`, 아래 형식) `sprintlog week --md`와 `sprintlog week --next --md`를 일정 근거로 삼아 위 4열 비교표를 작성한다. 경고는 표 아래에 CLI 로그 그대로 붙인다. 사용자가 조정하면 3절부터 다시 한다.
 
 ## 5. 기록
 

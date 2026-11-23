@@ -11,7 +11,7 @@ Jira 스프린트에 다음 주까지의 업무 계획을 날짜 단위로 적�
 ## 전제
 
 - Claude Code와 Node 24, Python 3 및 openpyxl 3.1 이상(4 미만). 설치는 setup 스킬이 안내하는 전용 Python 환경을 사용한다.
-- claude.ai 커넥터: Atlassian, Google Sheets, Google Drive.
+- Jira 조회용 Atlassian 연결과 Google Sheets API 사용자 OAuth. Google 인증은 [API 안내](references/google-api.md)를 따른다.
 - 팀의 Jira 워크플로우 플러그인(티켓 생성·분해, 착수·PR 시 실적 시각 기록)이 있으면 그 관례를 따른다. 어떤 플러그인을 쓰는지는 개인 프로필에서 지정한다.
 
 ## 스킬
@@ -49,8 +49,8 @@ Jira 쓰기와 시트 반영은 차이를 보여 주고 승인을 받은 뒤에�
 ## 로컬 로그와 2단계 전달
 
 1. `local read`로 설정된 경로의 기존 Excel과 실행 기록을 조회하고 사용자와 변경 내용을 확정한다.
-2. `local sync`로 확정된 주간 현황과 미배정을 로컬 Excel에 저장한다. 연도 탭 아래에 주별로 추가·갱신하며 실제 완료 줄에만 부분 취소선을 적용한다.
-3. `local delivery`로 주간 전용 전달 파일을 만들고, 사용자가 복사·붙여넣기하거나 API/화면 자동화로 Google 시트에 반영한다. 원본 Excel 전체는 업로드하지 않는다.
+2. `local sync`로 확정된 주간 현황과 미배정을 로컬 Excel에 저장한다. `주간 로그` 고정 탭에 주차당 한 행을 추가·갱신하며 실제 완료 줄에만 부분 취소선을 적용한다.
+3. `sheet sync --weeks <월요일,...>`로 API 미리보기 후 `--apply`로 사용자별 고정 Google 탭에 반영·재검증한다. 원본 팀 현황표에는 사용자가 직접 복사한다.
 
 `unscheduled` 탭은 로컬 전용이다. Jira 티켓·일정과 연결하거나 Google 주간 시트에 동기화하지 않는다. 기존 실행 기록의 unscheduled는 설정된 경로에서 찾아 첫 확정 저장 때 보존하며 기존 기록은 수정하지 않는다. 같은 제목은 Excel의 최신 내용을 우선한다.
 
@@ -62,7 +62,11 @@ Google 권한이 없어도 로컬 단계는 완료된다. 로컬 저장 완료�
 |---|---|---|
 | `api`(기본) | Google Sheets | 확정된 로컬 주간 로그로 값·부분 취소선을 쓰고 재조회한다 |
 | `paste` | 수동 전달 | 주간 전용 로컬 Excel의 복사 범위와 대상 위치를 안내한다 |
-| `agent` | 화면 자동화 | 주간 전용 전달 파일 또는 작업본에서 대상 창을 확인하고 붙여넣은 뒤 검증한다 |
+| `agent` | 구형 프로필 호환 | 브라우저 쓰기 대신 API를 사용한다 |
+
+기존 행을 갱신할 때는 텍스트·글자 효과만 수정한다. 높이·너비·배경·테두리·정렬·기본 글꼴은 유지한다. 새 주차 행에만 본문 템플릿의 서식·높이를 복사한다. Google에는 Jira 티켓·링크를 전달하지 않으며 로컬에는 유지한다. 완료 태그는 굵게 표시하고 실제 완료 줄은 취소선을 적용한다.
+
+`플러그인 안내` 탭에는 공식 저장소·릴리즈·설치·API 인증·자동 반영 규칙을 둔다. 업무 데이터가 아니므로 `sheet sync`는 이 탭을 수정하지 않는다. 사용자별 파일은 `주간 로그`와 안내 탭으로 관리하고 원본 팀 현황표와 분리한다.
 
 ## CLI
 
@@ -73,7 +77,7 @@ sprintlog status | doctor | config
 sprintlog leak-check             커밋 전 추적 파일 검사(패턴은 레포 밖)
 ```
 
-스킬은 `sprint resolve`, `plan draft`, `schedule`, `facts`, `check`, `notation`, `sheet target`, `cells`, `close classify`, `labels set`, `plan local`, `snapshot save`, `local read|sync|delivery`를 호출한다.
+스킬은 `sprint resolve`, `plan draft`, `schedule`, `facts`, `check`, `notation`, `sheet target`, `cells`, `close classify`, `labels set`, `plan local`, `snapshot save`, `local read|sync|delivery`, `sheet sync`를 호출한다.
 전체 목록은 `sprintlog --help`.
 
 ## 설치
