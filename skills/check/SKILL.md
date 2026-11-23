@@ -7,6 +7,8 @@ description: 계획과 실제 진행을 대조해 Jira 를 맞춘다(기한 초�
 
 CLI 는 `node ${CLAUDE_PLUGIN_ROOT}/bin/sprintlog.mjs`(아래 `sprintlog`). 판정은 CLI 가 하고, 새 기한처럼 사람이 정할 값은 사용자가 정한다. 쓰는 대상은 Jira 뿐이고 시트 반영은 `sprintlog:sync` 가 한다.
 
+호스트가 `${CLAUDE_PLUGIN_ROOT}`를 제공하지 않으면 [설치 안내](../../references/installation.md#실행-전제와-프로필)에 따라 실제 설치 경로를 사용한다.
+
 ## 로컬 맥락
 
 작업 전에 `sprintlog local read`로 설정된 Excel과 기존 실행 기록의 unscheduled를 확인한다. 저장 위치는 setup과 [로컬 로그 계약](../../references/local-log.md)을 따른다. 미배정은 로컬 보관 전용이며 Jira·Google 대상에 넣지 않는다. 사용자와 확정한 로컬 변경은 sync의 1단계로 저장하고 Google 전달은 별도로 진행한다.

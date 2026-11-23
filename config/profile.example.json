@@ -38,8 +38,6 @@
     "delivery": "api",
     "workUrl": null,
     "headerRow": 1,
-    "memberName": "",
-    "nextHeader": "차주 계획",
     "bullet": "- ",
     "tabName": "주간 로그",
     "templateRow": 2

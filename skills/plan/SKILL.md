@@ -5,7 +5,9 @@ description: 이번 주부터 다음 주까지의 업무를 내 티켓 단위(�
 
 # sprintlog:plan
 
-CLI 는 `node ${CLAUDE_PLUGIN_ROOT}/bin/sprintlog.mjs`(아래 `sprintlog`). 날짜·배치·경고는 CLI 가 정한다. LLM 은 대상·순서·시간을 제안하고, CLI 가 만든 표를 바꾸지 않고 보여 준다.
+CLI 는 `node ${CLAUDE_PLUGIN_ROOT}/bin/sprintlog.mjs`(아래 `sprintlog`). 날짜·배치·경고는 CLI 가 정한다. LLM은 대상·순서·시간을 제안하고 CLI가 계산한 일정·경고를 근거로 4열 비교표를 작성한다.
+
+호스트가 `${CLAUDE_PLUGIN_ROOT}`를 제공하지 않으면 [설치 안내](../../references/installation.md#실행-전제와-프로필)에 따라 실제 설치 경로를 사용한다.
 
 ## 로컬 맥락
 

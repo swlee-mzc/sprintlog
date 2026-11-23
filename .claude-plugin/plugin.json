@@ -1,6 +1,6 @@
 {
   "name": "sprintlog",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "대화로 확정한 주간 로그와 미배정을 로컬 Excel에 보관하고 주간 현황만 Google 시트에 전달한다.",
   "author": {
     "name": "swlee"
