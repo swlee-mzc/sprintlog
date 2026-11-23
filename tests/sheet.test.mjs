@@ -113,7 +113,7 @@ test('notation: 기능명이 없으면 요약으로 쓰고 누락을 보고, 휴
 test('cells: 줄 단위 취소선 위치는 UTF-16 기준', () => {
   const { text, runs } = cellText([{ text: '[완료] 기능 A', strike: true }, { text: '반복', strike: false }], '- ');
   assert.equal(text, '- [완료] 기능 A\n- 반복');
-  assert.deepEqual(runs, [{ startIndex: 0, format: { strikethrough: true } }, { startIndex: 12, format: { strikethrough: false } }]);
+  assert.deepEqual(runs, [{ startIndex: 0, format: { strikethrough: true, bold: false } }, { startIndex: 2, format: { strikethrough: true, bold: true } }, { startIndex: 6, format: { strikethrough: true, bold: false } }, { startIndex: 12, format: { strikethrough: false, bold: false } }]);
   assert.equal(colLetter(0), 'A');
   assert.equal(colLetter(27), 'AB');
   assert.equal(tabTitle('{M}월 {N}주', '2026-11-11'), '11월 2주');
@@ -123,10 +123,12 @@ test('cells: 티켓 키를 괄호로 붙여 링크를 걸고, 휴일 칸은 건�
   const { text, runs } = cellText([{ text: '[완료] 기능 A', strike: true, key: 'P-1' }, { text: '반복', strike: false, key: null }], '- ', 'https://jira.example/');
   assert.equal(text, '- [완료] 기능 A (P-1)\n- 반복');
   assert.deepEqual(runs, [
-    { startIndex: 0, format: { strikethrough: true } },
-    { startIndex: 13, format: { strikethrough: true, link: { uri: 'https://jira.example/browse/P-1' } } },
-    { startIndex: 16, format: { strikethrough: true } },
-    { startIndex: 18, format: { strikethrough: false } },
+    { startIndex: 0, format: { strikethrough: true, bold: false } },
+    { startIndex: 2, format: { strikethrough: true, bold: true } },
+    { startIndex: 6, format: { strikethrough: true, bold: false } },
+    { startIndex: 13, format: { strikethrough: true, bold: false, link: { uri: 'https://jira.example/browse/P-1' } } },
+    { startIndex: 16, format: { strikethrough: true, bold: false } },
+    { startIndex: 18, format: { strikethrough: false, bold: false } },
   ]);
   const n = notation({ week: '2026-11-09', subtasks: [st('PROJ-2')], labels: { 'PROJ-1': '기능 A' }, holidays: ['2026-11-10'] });
   const header = ['', '팀원', '월 11/9', '화 11/10', '수 11/11', '목 11/12', '금 11/13', '차주 계획'];
@@ -254,4 +256,14 @@ test('cells: 보류·수동·미등록 기존 줄을 삭제하지 않는다', ()
   assert.equal(out.requests.length, 0);
   assert.equal(out.cells[0].after, '- 보류 작업');
   assert.equal(out.cells[5].after, '- 기존 차주 계획');
+});
+
+
+test('완료 태그만 굵게: 빈 bullet도 중복 UTF-16 인덱스 없이, 예정은 취소선 없음', () => {
+  const { text, runs } = cellText([{ text: '[완료] 😀 업무', strike: false }], '');
+  assert.equal(text.slice(runs[0].startIndex, runs[1].startIndex), '[완료]');
+  assert.equal(runs[0].format.bold, true);
+  assert.equal(runs[1].format.bold, false);
+  assert.ok(runs.every((r) => !r.format.strikethrough));
+  assert.equal(new Set(runs.map((r) => r.startIndex)).size, runs.length);
 });

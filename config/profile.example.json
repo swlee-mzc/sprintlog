@@ -37,12 +37,12 @@
     "format": "sheets",
     "delivery": "api",
     "workUrl": null,
-    "tabPattern": "{M}월 {N}주",
-    "headerRow": 3,
-    "nameColumn": "B",
+    "headerRow": 1,
     "memberName": "",
     "nextHeader": "차주 계획",
-    "bullet": "- "
+    "bullet": "- ",
+    "tabName": "주간 로그",
+    "templateRow": 2
   },
   "capacity": {
     "hoursPerDay": 8,

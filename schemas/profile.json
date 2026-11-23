@@ -62,12 +62,14 @@
     "sheet": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["url", "format", "delivery", "tabPattern", "headerRow", "nameColumn", "memberName"],
+      "required": ["url", "format", "delivery"],
       "properties": {
         "url": { "type": "string", "pattern": "^https://docs\\.google\\.com/spreadsheets/d/[A-Za-z0-9_-]+" },
         "format": { "enum": ["sheets", "xlsx"] },
         "delivery": { "enum": ["api", "paste", "agent"] },
         "workUrl": { "type": ["string", "null"] },
+        "tabName": { "type": "string", "minLength": 1 },
+        "templateRow": { "type": "integer", "minimum": 2 },
         "tabPattern": { "type": "string", "minLength": 1 },
         "headerRow": { "type": "integer", "minimum": 1 },
         "nameColumn": { "type": "string", "pattern": "^[A-Z]{1,2}$" },

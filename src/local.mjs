@@ -5,6 +5,7 @@ import { spawnSync } from 'node:child_process';
 import { EXIT, Failure } from './core/runtime.mjs';
 import { assertDate, weekDays } from './core/time.mjs';
 import { cells } from './cells.mjs';
+import { weekKey, weeklyColumns } from './weekly-sheet.mjs';
 
 const SCRIPT = fileURLToPath(new URL('../scripts/workbook.py', import.meta.url));
 export function localConfig(profile) {
@@ -18,7 +19,7 @@ export function localConfig(profile) {
 function workbook(profile, request) {
   const cfg = localConfig(profile);
   const r = spawnSync(cfg.python, [SCRIPT], {
-    input: JSON.stringify({ path: cfg.workbookPath, bullet: profile.sheet.bullet ?? '- ', tickets: Boolean(profile.jira.site), ...request }),
+    input: JSON.stringify({ path: cfg.workbookPath, bullet: profile.sheet.bullet ?? '- ', tickets: true, tabName: profile.sheet.tabName ?? '주간 로그', ...request }),
     encoding: 'utf8', maxBuffer: 16 * 1024 * 1024,
   });
   if (r.error || r.status !== 0) throw new Failure(EXIT.PRECONDITION, `Excel 처리 실패: ${r.error?.message ?? r.stderr.trim()} — Python 3·openpyxl>=3.1 설치 및 파일 상태를 확인한다`);
@@ -71,12 +72,14 @@ function validateEntries(entries) {
 export function syncLocal(profile, input) {
   if (input.confirmed !== true) throw new Failure(EXIT.PRECONDITION, '사용자와 확정한 입력(confirmed:true)이 필요함');
   if (!Object.hasOwn(input, 'revision')) throw new Failure(EXIT.INPUT, 'local read 의 revision 이 필요함(새 파일은 null)');
+  if (input.replace !== undefined && typeof input.replace !== 'boolean') throw new Failure(EXIT.INPUT, 'replace는 boolean이어야 함');
   if (input.notation) {
     const n = input.notation;
     if (!n.week?.days || n.week.days.length !== 5 || JSON.stringify(weekDays(assertDate(n.week.days[0]))) !== JSON.stringify(n.week.days)) throw new Failure(EXIT.INPUT, '주간 날짜는 월~금이어야 함');
     if (!n.cells || Object.keys(n.cells).some((d) => !n.week.days.includes(d))) throw new Failure(EXIT.INPUT, '주간 셀 날짜 오류');
     for (const day of n.week.days) if (n.cells[day] !== null) validateEntries(n.cells[day]);
     validateEntries(n.next);
+    if (n.issues !== undefined && (typeof n.issues !== 'string' || n.issues.length > 30000 || /[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(n.issues))) throw new Failure(EXIT.INPUT, '이슈·요청은 문자열이어야 함');
   }
   const cfg = localConfig(profile);
   const lock = cfg.workbookPath + '.lock';
@@ -94,7 +97,7 @@ export function syncLocal(profile, input) {
       if (!title) throw new Failure(EXIT.INPUT, '미배정 제목은 비어 있으면 안 됨');
       items.set(title, { status: '미배정', note: '', ...items.get(title), ...item, title });
     }
-    return workbook(profile, { action: 'sync', revision: input.revision, notation: input.notation, unscheduled: [...items.values()] });
+    return workbook(profile, { action: 'sync', revision: input.revision, notation: input.notation, replace: input.replace === true, unscheduled: [...items.values()] });
   } finally { closeSync(fd); unlinkSync(lock); }
 }
 
@@ -106,7 +109,10 @@ export function deliverLocal(profile, week, target = null) {
   const out = workbook(profile, { action: 'delivery', week: monday, output });
   const result = { ...out, stage: profile.sheet.delivery === 'paste' ? 'pending-user-paste' : `pending-${profile.sheet.delivery}`, targetUrl: profile.sheet.url, mode: profile.sheet.delivery };
   if (target) {
-    const plan = cells({ ...target, notation: out.notation, profile: { ...profile.sheet, ticketBase: profile.jira.site ?? null } });
+    const matches = target.names.flatMap((v, i) => weekKey(v) === monday ? [i] : []);
+    if (matches.length !== 1) throw new Failure(EXIT.PRECONDITION, '고정 탭의 주차 행이 없거나 중복됩니다');
+    const columns = weeklyColumns(target.header, out.notation.week.days);
+    const plan = cells({ ...target, rowIndex: matches[0], columns, notation: out.notation, profile: { ...profile.sheet, ticketBase: null } });
     if (plan.error) throw new Failure(EXIT.PRECONDITION, `Google 대상 위치 확인 실패: ${plan.error}`);
     return { ...result, ...plan, stage: Array.isArray(target.currentRuns) && plan.requests.length === 0 ? 'google-verified' : result.stage };
   }

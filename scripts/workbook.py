@@ -1,4 +1,5 @@
 """Local workbook storage. Google delivery exports contain weekly cells only."""
+from copy import copy
 import datetime as dt
 import hashlib
 import json
@@ -60,7 +61,15 @@ def rich(items, bullet, tickets):
         if i:
             runs.append(TextBlock(InlineFont(strike=False), '\n'))
             text = text[1:]
-        runs.append(TextBlock(InlineFont(strike=item['strike']), text))
+        tag = re.match(r'\[완료(?:-지연\(\d{4}\))?\]', item['text'])
+        if tag:
+            start = len(bullet)
+            end = start + len(tag[0])
+            runs.extend([TextBlock(InlineFont(strike=item['strike'], b=False), text[:start]), TextBlock(InlineFont(strike=item['strike'], b=True), text[start:end])])
+            if text[end:]:
+                runs.append(TextBlock(InlineFont(strike=item['strike'], b=False), text[end:]))
+        else:
+            runs.append(TextBlock(InlineFont(strike=item['strike'], b=False), text))
     if sum(len(r.text) for r in runs) > 32767:
         raise ValueError('Excel 셀의 최대 글자 수를 넘습니다')
     return CellRichText(runs) if runs else ''
@@ -73,7 +82,7 @@ def day(value, year):
     return dt.date(year, int(m[1]), int(m[2])) if m else None
 
 
-def weeks(book):
+def legacy_weeks(book):
     result = {}
     for sheet in book:
         if not re.fullmatch(r'\d{4}', sheet.title):
@@ -92,10 +101,93 @@ def weeks(book):
     return result
 
 
-def week_value(found):
+def legacy_week_value(found):
     sheet, row, dates = found
     days = [d.isoformat() for d in dates]
-    return {'week': {'days': days, 'next': {'from': (dates[0] + dt.timedelta(days=7)).isoformat(), 'to': (dates[0] + dt.timedelta(days=11)).isoformat()}}, 'cells': {d: entries(sheet.cell(row + 1, c).value, sheet.cell(row + 1, c).font.strike) for c, d in enumerate(days, 2)}, 'next': entries(sheet.cell(row + 1, 7).value, sheet.cell(row + 1, 7).font.strike)}
+    return {'week': {'days': days, 'next': {'from': (dates[0] + dt.timedelta(days=7)).isoformat(), 'to': (dates[0] + dt.timedelta(days=11)).isoformat()}}, 'cells': {d: entries(sheet.cell(row + 1, c).value, sheet.cell(row + 1, c).font.strike) for c, d in enumerate(days, 2)}, 'next': entries(sheet.cell(row + 1, 7).value, sheet.cell(row + 1, 7).font.strike), 'issues': str(sheet.cell(row + 1, 8).value or '') if sheet.cell(row, 8).value == '이슈·요청' else ''}
+
+
+HEADERS = ['주차', '월', '화', '수', '목', '금', '차주 계획', '이슈·요청']
+TAB = '주간 로그'
+
+
+def weeks(book):
+    if TAB not in book.sheetnames:
+        return legacy_weeks(book)
+    sheet = book[TAB]
+    if [sheet.cell(1, c).value for c in range(1, 9)] != HEADERS:
+        raise ValueError('주간 로그 탭의 헤더가 예상한 형식이 아닙니다')
+    result = {}
+    for row in range(2, sheet.max_row + 1):
+        value = sheet.cell(row, 1).value
+        if not value:
+            if any(sheet.cell(row, c).value for c in range(2, 9)):
+                raise ValueError('내용이 있지만 주차 키가 없는 행이 있습니다')
+            continue
+        key = str(value).splitlines()[0].strip()
+        first = dt.date.fromisoformat(key)
+        if first.weekday() != 0 or key in result:
+            raise ValueError('월요일이 아닌 주차 또는 중복 주차: ' + key)
+        result[key] = (sheet, row, [first + dt.timedelta(days=i) for i in range(5)])
+    return result
+
+
+def week_value(found):
+    sheet, row, dates = found
+    if sheet.title != TAB:
+        return legacy_week_value(found)
+    days = [d.isoformat() for d in dates]
+    return {'week': {'days': days, 'next': {'from': (dates[0] + dt.timedelta(days=7)).isoformat(), 'to': (dates[0] + dt.timedelta(days=11)).isoformat()}}, 'cells': {d: entries(sheet.cell(row, c).value, sheet.cell(row, c).font.strike) for c, d in enumerate(days, 2)}, 'next': entries(sheet.cell(row, 7).value, sheet.cell(row, 7).font.strike), 'issues': str(sheet.cell(row, 8).value or '')}
+
+
+def ensure_fixed(book, path):
+    if TAB in book.sheetnames:
+        return book[TAB]
+    old = legacy_weeks(book)
+    if old and path.exists():
+        backup = path.with_name(path.name + '.pre-fixed.bak')
+        if not backup.exists():
+            with backup.open('xb') as out:
+                out.write(path.read_bytes())
+            os.chmod(backup, 0o600)
+    sheet = book.create_sheet(TAB, 0)
+    for col, label in enumerate(HEADERS, 1):
+        text(sheet.cell(1, col), label)
+        style(sheet.cell(1, col), True)
+    sheet.freeze_panes = 'B2'
+    sheet.row_dimensions[1].height = 22
+    sheet.column_dimensions['A'].width = 22
+    for col in 'BCDEFGH':
+        sheet.column_dimensions[col].width = 58
+    for week, found in old.items():
+        row = append_week(sheet, week)
+        value = legacy_week_value(found)
+        for col, items in enumerate(list(value['cells'].values()) + [value['next']], 2):
+            sheet.cell(row, col).value = rich(items, BULLET, True)
+        text(sheet.cell(row, 8), value['issues'])
+    # The pre-migration backup retains the original tabs and formatting.
+    legacy_names = {found[0].title for found in old.values()}
+    for name in list(book.sheetnames):
+        if name in legacy_names or (re.fullmatch(r'\d{4}-\d{2}-\d{2}', name) and book[name].cell(1, 1).value == '팀원'):
+            del book[name]
+    return sheet
+
+
+def append_week(sheet, week):
+    last = max((r for r in range(1, sheet.max_row + 1) if any(sheet.cell(r, c).value is not None for c in range(1, 9))), default=1)
+    row = max(2, last + 1)
+    if row > 2:
+        for col in range(1, 9):
+            sheet.cell(row, col)._style = copy(sheet.cell(2, col)._style)
+        sheet.row_dimensions[row] = copy(sheet.row_dimensions[2])
+        sheet.row_dimensions[row].index = row
+    else:
+        for col in range(1, 9):
+            style(sheet.cell(row, col))
+        sheet.row_dimensions[row].height = 72
+    first = dt.date.fromisoformat(week)
+    text(sheet.cell(row, 1), week + '\n' + first.strftime('%m/%d') + ' ~ ' + (first + dt.timedelta(days=4)).strftime('%m/%d'))
+    return row
 
 
 def unscheduled(book):
@@ -165,7 +257,8 @@ def save_checked(book, path, expected, verify):
 
 
 def run(req):
-    global BULLET
+    global BULLET, TAB
+    TAB = req.get('tabName', '주간 로그')
     BULLET = req['bullet']
     path = Path(req['path'])
     before = revision(path)
@@ -184,23 +277,25 @@ def run(req):
         sheet = delivery.active
         sheet.title = '전달'
         value = week_value(existing[week])
-        for c, d in enumerate(value['week']['days'], 1):
-            text(sheet.cell(1, c), d)
-            sheet.cell(2, c).value = rich(value['cells'][d], req['bullet'], req['tickets'])
-            style(sheet.cell(2, c))
-        text(sheet.cell(1, 6), '차주 계획')
-        sheet.cell(2, 6).value = rich(value['next'], req['bullet'], req['tickets'])
-        style(sheet.cell(2, 6))
-        for c in 'ABCDEF':
-            sheet.column_dimensions[c].width = 58
+        for col, label in enumerate(HEADERS, 1):
+            text(sheet.cell(1, col), label)
+            style(sheet.cell(1, col), True)
+        text(sheet.cell(2, 1), week)
+        for col, items in enumerate(list(value['cells'].values()) + [value['next']], 2):
+            sheet.cell(2, col).value = rich(items, req['bullet'], False)
+            style(sheet.cell(2, col))
+        text(sheet.cell(2, 8), value.get('issues', ''))
+        style(sheet.cell(2, 8))
+        for col in 'ABCDEFGH':
+            sheet.column_dimensions[col].width = 58
         sheet.row_dimensions[2].height = 230
         target = Path(req['output'])
         def verify(loaded):
             assert loaded.sheetnames == ['전달']
-            for c in range(1, 7):
-                assert str(loaded.active.cell(2, c).value or '') == str(sheet.cell(2, c).value or '')
+            for col in range(1, 9):
+                assert str(loaded.active.cell(2, col).value or '') == str(sheet.cell(2, col).value or '')
         save_checked(delivery, target, revision(target), verify)
-        return {'file': str(target), 'range': "'전달'!A2:F2", 'notation': value, 'sourceRevision': before}
+        return {'file': str(target), 'range': "'전달'!B2:H2", 'notation': value, 'sourceRevision': before}
     if req.get('revision') != before:
         raise ValueError('로컬 파일이 변경되었습니다. 다시 읽고 확정하세요')
     incoming = req.get('unscheduled', [])
@@ -213,37 +308,19 @@ def run(req):
     saved_week = None
     if value:
         start = value['week']['days'][0]
-        if start in existing:
-            sheet, row, dates = existing[start]
-        else:
-            year = start[:4]
-            if year not in book.sheetnames:
-                sheet = book.create_sheet(year, 0)
-                text(sheet.cell(1, 1), year + ' 스프린트 로그')
-                sheet.freeze_panes = 'B4'
-                sheet.column_dimensions['A'].width = 22
-                for col in 'BCDEFG':
-                    sheet.column_dimensions[col].width = 58
-            sheet = book[year]
-            row = max(4, sheet.max_row + 2)
-            dates = [dt.date.fromisoformat(d) for d in value['week']['days']]
-            text(sheet.cell(row, 1), '주간')
-            text(sheet.cell(row + 1, 1), start)
-            for c, date in enumerate(dates, 2):
-                sheet.cell(row, c).value = date
-                sheet.cell(row, c).number_format = 'mm/dd'
-                style(sheet.cell(row, c), True)
-            text(sheet.cell(row, 7), '차주 계획')
-            style(sheet.cell(row, 7), True)
-        for c, key in enumerate([d.isoformat() for d in dates] + ['next'], 2):
+        sheet = ensure_fixed(book, path)
+        existing_fixed = weeks(book)
+        row = existing_fixed[start][1] if start in existing_fixed else append_week(sheet, start)
+        dates = [dt.date.fromisoformat(d) for d in value['week']['days']]
+        for col, key in enumerate([d.isoformat() for d in dates] + ['next'], 2):
             new = value['next'] if key == 'next' else value['cells'][key]
             if new is None:
                 continue
-            target = sheet.cell(row + 1, c)
-            updated = merge(entries(target.value, target.font.strike), new)
+            target = sheet.cell(row, col)
+            updated = new if req.get('replace') else merge(entries(target.value, target.font.strike), new)
             target.value = rich(updated, req['bullet'], req['tickets'])
-            target.alignment = Alignment(wrap_text=True, vertical='top')
-        sheet.row_dimensions[row + 1].height = 230
+        if 'issues' in value:
+            text(sheet.cell(row, 8), value['issues'])
         saved_week = week_value((sheet, row, dates))
     def verify(loaded):
         assert unscheduled(loaded) == items

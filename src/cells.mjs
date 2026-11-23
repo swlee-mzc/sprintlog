@@ -19,17 +19,26 @@ export function cellText(entries, bullet, ticketBase = null) {
   if (!lines.length) return { text, runs: [] };
   const runs = [];
   const push = (startIndex, format) => {
+    if (startIndex >= text.length) return;
+    if (runs.at(-1)?.startIndex === startIndex) runs.pop();
     const last = runs.at(-1);
     if (last && JSON.stringify(last.format) === JSON.stringify(format)) return;
     runs.push({ startIndex, format });
   };
   let offset = 0;
   entries.forEach((e, i) => {
-    push(offset, { strikethrough: e.strike });
+    const base = { strikethrough: e.strike, bold: false };
+    push(offset, base);
+    const tag = /^\[완료(?:-지연\(\d{4}\))?\]/.exec(e.text);
+    if (tag) {
+      const start = offset + bullet.length;
+      push(start, { ...base, bold: true });
+      push(start + tag[0].length, base);
+    }
     if (ticketBase && e.key) {
       const keyAt = offset + lines[i].length - e.key.length - 1;
-      push(keyAt, { strikethrough: e.strike, link: { uri: `${ticketBase.replace(/\/$/, '')}/browse/${e.key}` } });
-      push(keyAt + e.key.length, { strikethrough: e.strike });
+      push(keyAt, { ...base, link: { uri: `${ticketBase.replace(/\/$/, '')}/browse/${e.key}` } });
+      push(keyAt + e.key.length, base);
     }
     offset += lines[i].length + 1;
   });
@@ -43,10 +52,13 @@ function signature(runs, length) {
   sorted.forEach((r, i) => {
     const from = r.startIndex ?? 0;
     const to = i + 1 < sorted.length ? sorted[i + 1].startIndex ?? 0 : length;
-    const mark = `${r.format?.strikethrough ? 's' : ''}${r.format?.link?.uri ?? ''}`;
-    if (mark && to > from) ranges.push(`${from}-${to}:${mark}`);
+    const mark = `${r.format?.strikethrough ? 's' : ''}${r.format?.bold ? 'b' : ''}${r.format?.link?.uri ?? ''}`;
+    if (to <= from) return;
+    const previous = ranges.at(-1);
+    if (previous && previous.mark === mark && previous.to === from) previous.to = to;
+    else ranges.push({ from, to, mark });
   });
-  return ranges.join(',');
+  return ranges.filter((r) => r.mark).map((r) => `${r.from}-${r.to}:${r.mark}`).join(',');
 }
 
 // 알려지지 않은 기존 줄도 유지한다. 동일 티켓 또는 동일 문구만 최신 입력으로 대체한다.
@@ -69,31 +81,33 @@ function preserveEntries(entries, before, runs, bullet) {
 }
 
 // header·names·current 는 A열 1행부터 읽은 값이어야 한다(get_values 의 'tab'!A{행}:… 와 'tab'!{이름열}1:…).
-export function cells({ notation, sheet, profile, header, names, current = [], currentRuns = null }) {
+export function cells({ notation, sheet, profile, header, names, current = [], currentRuns = null, replace = false, rowIndex: selectedRow = null, columns: selectedColumns = null }) {
   const cfg = { nextHeader: '차주 계획', bullet: '- ', ...profile };
   const matches = names.map((v, i) => [String(v ?? '').trim(), i]).filter(([v]) => v === cfg.memberName);
-  if (!matches.length) return { error: 'member-not-found', member: cfg.memberName };
-  if (matches.length > 1) return { error: 'member-ambiguous', member: cfg.memberName, rows: matches.map(([, i]) => i + 1) };
-  const rowIndex = matches[0][1];
+  if (selectedRow === null && !matches.length) return { error: 'member-not-found', member: cfg.memberName };
+  if (selectedRow === null && matches.length > 1) return { error: 'member-ambiguous', member: cfg.memberName, rows: matches.map(([, i]) => i + 1) };
+  const rowIndex = selectedRow ?? matches[0][1];
+  if (!Number.isInteger(rowIndex) || rowIndex < 0) return { error: 'invalid-row' };
 
-  const columns = {};
-  header.forEach((h, i) => {
+  const columns = { ...selectedColumns };
+  if (!selectedColumns) header.forEach((h, i) => {
     const v = String(h ?? '').trim();
     for (const d of notation.week.days) if (new RegExp(`(^|\\D)${md(d)}($|\\D)`).test(v)) columns[d] = i;
     if (v === cfg.nextHeader) columns.next = i;
+    if (v === '이슈·요청') columns.issues = i;
   });
-  const missing = [...notation.week.days, 'next'].filter((k) => columns[k] === undefined);
+  const missing = [...notation.week.days, 'next', ...(notation.issues !== undefined ? ['issues'] : [])].filter((k) => columns[k] === undefined);
   if (missing.length) return { error: 'columns-not-found', missing };
 
-  const targets = [...notation.week.days.map((d) => [d, notation.cells[d]]), ['next', notation.next]];
+  const targets = [...notation.week.days.map((d) => [d, notation.cells[d]]), ['next', notation.next], ...(notation.issues !== undefined ? [['issues', notation.issues ? [{ text: notation.issues, strike: false }] : []]] : [])];
   const out = [];
   const requests = [];
   for (const [k, entries] of targets) {
     if (entries === null) continue;
     const col = columns[k];
     const before = String(current[col] ?? '');
-    const preserved = preserveEntries(entries, before, currentRuns?.[col], cfg.bullet);
-    const { text, runs } = cellText(preserved, cfg.bullet, cfg.ticketBase);
+    const preserved = replace || k === 'issues' ? entries : preserveEntries(entries, before, currentRuns?.[col], cfg.bullet);
+    const { text, runs } = cellText(preserved, k === 'issues' ? '' : cfg.bullet, cfg.ticketBase);
     // 현재 서식을 모르면 내용이 있는 칸은 다시 써서 서식을 보장한다.
     const changed = Array.isArray(currentRuns) ? before !== text || signature(currentRuns[col], before.length) !== signature(runs, text.length) : before !== text || text.length > 0;
     const a1 = `${colLetter(col)}${rowIndex + 1}`;
