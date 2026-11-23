@@ -1,11 +1,11 @@
 ---
 name: setup
-description: sprintlog 의 전제(커넥터·프로필·워크플로우 플러그인)를 점검하고 개인 프로필을 만들거나 고친다. 처음 쓸 때, 커넥터 연결이 끊겼을 때, 시트 URL·스프린트 주기·이름이 바뀌었을 때 사용한다.
+description: sprintlog 의 전제(로컬 실행 환경·Jira 연결·Google API·프로필)를 점검하고 개인 프로필을 만들거나 고친다. 처음 쓸 때, 외부 연결이 끊겼을 때, 시트 URL·스프린트 주기·고정 탭이 바뀌었을 때 사용한다.
 ---
 
 # sprintlog:setup
 
-CLI 는 `node ${CLAUDE_PLUGIN_ROOT}/bin/sprintlog.mjs` 로 부른다(아래 `sprintlog`). 판정·검증은 CLI 가 하고, 이 스킬은 커넥터 조회와 사용자 확인만 한다.
+CLI 는 `node ${CLAUDE_PLUGIN_ROOT}/bin/sprintlog.mjs` 로 부른다(아래 `sprintlog`). 판정·검증은 CLI가 하고 스킬은 연결 설정과 사용자 확인을 맡는다. 호스트별 설치 경로·프로필 홈·데스크톱 실행 범위는 [설치 안내](../../references/installation.md)를 따른다.
 
 ## 0. 로컬 설정
 
@@ -18,13 +18,12 @@ Python 3와 openpyxl>=3.1이 필요하다. 기존 Python에 설치돼 있으면 
 ## 1. 전제 점검
 
 1. `sprintlog doctor --json` 을 실행해 결과를 그대로 보여 준다. `fail` 이 있으면 해당 항목부터 해결한다.
-2. 커넥터를 가벼운 조회로 확인한다. 도구가 없거나 실패하면 해당 외부 작업만 보류한다. 로컬 조회·확정·Excel 저장은 계속한다.
+2. 외부 연결을 가벼운 조회로 확인한다. `doctor`는 Google OAuth·원격 탭을 점검하지 않는다. 도구가 없거나 실패하면 해당 외부 작업만 보류한다. 로컬 조회·확정·Excel 저장은 계속한다.
    | 커넥터 | 확인 호출 | 없을 때 안내 |
    |---|---|---|
    | Atlassian | 현재 사용자 조회 | claude.ai 커넥터에서 Atlassian 을 연결한 뒤 Claude Code 를 다시 시작 |
    | Google Sheets API | [API 인증 절차](../../references/google-api.md)의 사용자 OAuth·Sheets scope·파일 편집 권한 확인. 확정 로컬 주차가 있으면 `sheet sync --week <월요일>` dry-run | Sheets scope로 사용자 재승인. Google 커넥터 설치는 CLI API 사용의 전제가 아님 |
-   | Google Drive | 대상 시트 메타데이터 조회 | claude.ai 커넥터에서 Google Drive 를 연결 |
-3. 대상 시트가 xlsx 면(`Spreadsheet not found` 이고 Drive 메타데이터의 mimeType 이 xlsx) 형식을 `xlsx` 로 기록하고 4절의 반영 방식을 묻는다.
+3. [사용자별 Google 파일 준비](../../references/installation.md#사용자별-google-파일-준비)에 따라 고정 탭·헤더·빈 본문 템플릿을 확인한다. CLI는 이들을 자동 생성하지 않는다. 원본이 Office 파일이어도 원본 변환이나 Google Drive 연결을 필수로 요구하지 않는다. 원본과 별도의 사용자 전용 Google 파일을 자동 반영 대상으로 쓴다.
 
 ## 2. 조회해서 채우는 값
 
@@ -45,11 +44,11 @@ Python 3와 openpyxl>=3.1이 필요하다. 기존 Python에 설치돼 있으면 
 
 | 값 | 동작 |
 |---|---|
-| `paste` | 주간 전용 로컬 Excel에서 사용자가 대상 개인 행에 복사·붙여넣기 |
+| `paste` | 명시적 파일 전달 요청에 사용. 주간 전용 Excel만 만들며 원본 현황표에는 사용자가 직접 복사 |
 | `api` | 기본. [Google API 인증·반영](../../references/google-api.md)으로 값·굵게·취소선·링크 재조회 |
-| `agent` | 기존 프로필 호환값. Google 반영은 api로 전환하며 브라우저 붙여넣기를 사용하지 않는다 |
+| `agent` | 구형 프로필 호환값. 새 설정은 api로 저장하며 브라우저 쓰기는 사용하지 않는다 |
 
-자동화에 Google 작업본이 필요하면 사용자가 원본에서 `파일 → Google Sheets로 저장` 으로 만들어 내 드라이브에 둔다.
+`sheet sync`는 `delivery` 값과 관계없이 Sheets API로 실행되며 기본은 미리보기다. `local delivery`는 API를 호출하지 않는다. 신규 프로필의 `format`은 `sheets`로 둔다. 구형 `xlsx`·`workUrl` 설정의 의미는 설치 안내를 따른다.
 
 ## 5. 저장
 

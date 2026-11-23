@@ -1,6 +1,6 @@
 # sprintlog
 
-Jira 스프린트에 다음 주까지의 업무 계획을 날짜 단위로 적고, 그 진행 기록을 주간 현황 시트에 동기화하는 Claude Code 플러그인이다.
+Jira 스프린트에 다음 주까지의 업무 계획을 날짜 단위로 적고, 그 진행 기록을 사용자별 주간 로그에 동기화하는 로컬 실행 플러그인이다. Claude Code와 Codex의 설치·실행 범위는 [설치 안내](references/installation.md)를 따른다.
 사용자와 대화해 확정한 주간 현황과 미배정 업무를 로컬 Excel에 보관하고, 주간 현황만 Google 시트에 전달한다. Jira는 등록된 업무의 상태·일정·실적 근거이며 미배정 목록과 연결하지 않는다.
 
 플러그인은 두 층으로 나뉜다.
@@ -10,7 +10,7 @@ Jira 스프린트에 다음 주까지의 업무 계획을 날짜 단위로 적�
 
 ## 전제
 
-- Claude Code와 Node 24, Python 3 및 openpyxl 3.1 이상(4 미만). 설치는 setup 스킬이 안내하는 전용 Python 환경을 사용한다.
+- 로컬 명령 실행과 파일 접근이 가능한 호스트, Node.js 24 이상, Python 3 및 openpyxl 3.1 이상(4 미만). 설치는 setup 스킬이 안내하는 전용 Python 환경을 사용한다.
 - Jira 조회용 Atlassian 연결과 Google Sheets API 사용자 OAuth. Google 인증은 [API 안내](references/google-api.md)를 따른다.
 - 팀의 Jira 워크플로우 플러그인(티켓 생성·분해, 착수·PR 시 실적 시각 기록)이 있으면 그 관례를 따른다. 어떤 플러그인을 쓰는지는 개인 프로필에서 지정한다.
 
@@ -24,7 +24,7 @@ Jira 스프린트에 다음 주까지의 업무 계획을 날짜 단위로 적�
 | `sprintlog:sync` | 원하는 시점(이삼일~주말) | 대화로 확정한 내용과 미배정을 로컬 Excel에 저장하고 주간 현황을 Google 시트에 전달한다. 점검 조치가 남아 있으면 check 로 안내한다 |
 | `sprintlog:close` | 스프린트 종료일 경과 시 | 내 작업을 판정표대로 완료 전환·이월하고 추적 스프린트를 교체한다 |
 
-Jira 쓰기와 시트 반영은 차이를 보여 주고 승인을 받은 뒤에만 한다. `close` 는 판정표의 근거가 있는 항목만 실행하고, 근거가 없는 항목은 "판정 불가"로 보고한다.
+계획과 sync 변경은 차이를 보여 주고 확정된 범위만 기록한다. `close` 실행을 요청받으면 그 범위에서 판정표의 근거가 있는 항목을 수행하며, 근거가 없는 항목은 "판정 불가"로 보고한다. 미리보기 요청은 기록하지 않는다.
 
 ## 계획 규칙
 
@@ -60,9 +60,11 @@ Google 권한이 없어도 로컬 단계는 완료된다. 로컬 저장 완료�
 
 | 값 | 대상 | 동작 |
 |---|---|---|
-| `api`(기본) | Google Sheets | 확정된 로컬 주간 로그로 값·부분 취소선을 쓰고 재조회한다 |
-| `paste` | 수동 전달 | 주간 전용 로컬 Excel의 복사 범위와 대상 위치를 안내한다 |
-| `agent` | 구형 프로필 호환 | 브라우저 쓰기 대신 API를 사용한다 |
+| `api`(기본) | 사용자별 Google 고정 탭 | `sheet sync --apply`로 텍스트·완료 태그 굵게·실제 완료 취소선을 반영하고 재조회한다 |
+| `paste` | 파일 전달 | `local delivery`로 주간 전용 파일을 만들고 복사 범위를 안내한다. 원본 팀 현황표에는 사용자가 직접 복사한다 |
+| `agent` | 구형 프로필 호환 | 새 설정에는 사용하지 않는다. 자동 반영 명령은 `delivery` 값과 관계없이 Sheets API를 사용한다 |
+
+`local delivery`는 파일·차이표를 만들 뿐 Google에 전송하지 않는다. `sheet sync`도 기본은 미리보기이며 `--apply`가 있어야 쓴다.
 
 기존 행을 갱신할 때는 텍스트·글자 효과만 수정한다. 높이·너비·배경·테두리·정렬·기본 글꼴은 유지한다. 새 주차 행에만 본문 템플릿의 서식·높이를 복사한다. Google에는 Jira 티켓·링크를 전달하지 않으며 로컬에는 유지한다. 완료 태그는 굵게 표시하고 실제 완료 줄은 취소선을 적용한다.
 
@@ -82,12 +84,11 @@ sprintlog leak-check             커밋 전 추적 파일 검사(패턴은 레�
 
 ## 설치
 
-```
-claude plugin marketplace add swlee-mzc/sprintlog
-claude plugin install sprintlog@sprintlog
-```
+[설치와 실행 환경](references/installation.md)에 Claude Code·Codex 설치/갱신, 데스크톱 ZIP의 검증 범위, 사용자별 Google 파일 준비를 정리한다.
 
-터미널 명령 `sprintlog`(선택): 플러그인 폴더에서 `pnpm link --global`. 스킬은 설치 여부와 상관없이 `node ${CLAUDE_PLUGIN_ROOT}/bin/sprintlog.mjs` 로 부른다.
+ZIP에는 런타임·프로필·Jira 연결·Google 인증이 포함되지 않는다. 데스크톱 앱에 업로드만 해서 전체 기능이 동일하게 실행된다고 보장하지 않는다.
+
+처음 사용할 때는 [설정 예시](config/profile.example.json)를 채워 setup을 진행한다. Google 파일에 고정 탭·헤더·본문 템플릿을 먼저 만들고 [API 인증](references/google-api.md)을 완료한다. 원본 팀 현황표는 자동 반영 대상으로 지정하지 않는다.
 
 ## 개발
 
@@ -96,10 +97,10 @@ claude plugin install sprintlog@sprintlog
 ```
 pnpm test
 ```
-JSON 입력과 저장 파일(프로필·로컬 계획·스냅샷)은 JSON Schema 로 검증한다(`facts` 는 Jira 응답 원본을 해석해 읽는다).
+프로필·로컬 계획·스냅샷 및 스키마가 지정된 명령 입력은 JSON Schema로 검증한다. `local sync`는 확정 여부·revision·주차·항목 구조를 직접 검증한다. `facts`는 Jira 응답 원본을 해석한다.
 모든 명령은 종료 코드(`0` 정상, `1` 조치 필요, `2` 입력 오류, `3` 전제 미충족)와
 로그 형식(`sprintlog <명령> <단계> <ok|warn|fail|skip> key=value ...`, 표준 오류)을 지킨다.
-조회 명령은 `--json`, `--md`, `--no-color` 를 지원한다.
+`week`·`sprint`는 `--json`, `--md`, `--no-color`를 지원한다. 기계용 명령은 결과 JSON을 표준 출력에 쓴다.
 
 ## 로컬 상태
 
@@ -112,5 +113,5 @@ JSON 입력과 저장 파일(프로필·로컬 계획·스냅샷)은 JSON Schema
 | `${CLAUDE_CONFIG_DIR}/sprintlog/plans/` | 미생성 스프린트의 로컬 계획 |
 | `~/.cache/sprintlog/` | 조회용 스냅샷, 실행 기록 |
 
-회사·팀 고유 값은 레포가 아니라 프로필에만 둔다: Jira 사이트·필드 ID, 스프린트 주기 규칙, 시트 URL(새 시트 파일이 생기면 갱신), 시트상의 이름, 워크플로우 플러그인, 고정 문구.
-레포에는 `config/profile.example.json` 의 빈 형식만 둔다.
+회사·팀 고유 값은 레포가 아니라 프로필에만 둔다: Jira 사이트·필드 ID, 스프린트 주기 규칙, 시트 URL(새 시트 파일이 생기면 갱신), 고정 탭·헤더·템플릿 설정, 워크플로우 플러그인, 고정 문구.
+레포에는 `config/profile.example.json`의 빈 형식만 둔다. 프로필 홈과 `CODEX_HOME`의 관계는 [설치 안내](references/installation.md#실행-전제와-프로필)를 따른다.
